@@ -2,9 +2,7 @@ numpy==1.26
 scipy
 pynn
 matplotlib
-neuron
 pyNeuroML
 libNeuroML
-arbor
 nest
 mpi4py

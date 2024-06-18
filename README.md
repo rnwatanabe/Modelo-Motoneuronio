@@ -1,1 +1,4 @@
-# pyNNstudies
+# Modelo-Motoneurônio
+
+
+
