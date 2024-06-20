@@ -1,0 +1,4 @@
+passoas para instalar as bibliotecas 
+1- C:\Users\rebek\miniconda3\python -m venv modelpynn 
+2-.\modelpynn\Scripts\activate.bat
+3-.\modelpynn\Scripts\pip3.exe install -r .\requirements.txt               
