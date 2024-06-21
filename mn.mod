@@ -56,6 +56,7 @@ BREAKPOINT {
     ikf = gk_fast*n*n*n*n*(v - ekf)
     iks = gk_slow*p*p*(v - eks)
     il = gl*(v - el)
+    :printf("ina = %g", ina)
 }
 
 DERIVATIVE states {
