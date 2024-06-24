@@ -4,4 +4,3 @@ pynn
 matplotlib
 pyNeuroML
 libNeuroML
-mpi4py
