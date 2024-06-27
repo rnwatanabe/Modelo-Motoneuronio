@@ -76,13 +76,13 @@ NET_RECEIVE (w) {
     }
 }
 
-FUNCTION rand_gamma(a(1), b(/ms)) (1) {
+FUNCTION new_threshold(order(1), rate(/ms)) (1) {
     LOCAL c, d, Z, U, V
 
     if (a > 1) {
         d = alpha - 1/3
         c = 1/sqrt(9*d)
-        Z = norm(0, 1)
+        Z = normrand(0, 1)
         U = scop_random()
         V = (1 + c*Z)^3
         while ((Z < -1/c) || (log(U) > 0.5*Z*Z + d - d*V + d*log(V))) {
