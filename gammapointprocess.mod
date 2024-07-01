@@ -18,7 +18,7 @@ Author: Andrew P. Davison, UNIC, CNRS
 ENDCOMMENT
 
 NEURON  {
-    ARTIFICIAL_CELL GammaStimStart
+    ARTIFICIAL_CELL GammaProcess
     RANGE alpha, beta, start, duration
 }
 
@@ -76,24 +76,21 @@ NET_RECEIVE (w) {
     }
 }
 
-FUNCTION new_threshold(order(1), rate(/ms)) (1) {
-    LOCAL c, d, Z, U, V
-
-    if (a > 1) {
-        d = alpha - 1/3
-        c = 1/sqrt(9*d)
-        Z = normrand(0, 1)
+FUNCTION rand_gamma(alpha(1), beta(/ms)) (1) {
+    LOCAL i, Z, U, T
+    i = 1
+    Z = 1.0
+    while (i <= alpha){
         U = scop_random()
-        V = (1 + c*Z)^3
-        while ((Z < -1/c) || (log(U) > 0.5*Z*Z + d - d*V + d*log(V))) {
-            Z = normrand(0, 1)
-            U = scop_random()
-            V = (1 + c*Z)^3
-        }
-        rand_gamma = d * V / b
-    } else {
-        U = scop_random()
-        rand_gamma = rand_gamma(a + 1, b) * U^(1/alpha)
+        Z = Z*U
+        i = i + 1
+    }
+    T = -log(Z)/alpha
+    i = 1
+    while (T>0){
+        T = T - beta*dt
+        i = i + 1
     }
 
+    rand_gamma = i*dt
 }
