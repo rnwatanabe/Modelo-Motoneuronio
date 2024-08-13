@@ -1,3 +1,6 @@
+from neuroml import Morphology, Segment, Point3DWithDiam as P
+from pyNN.morphology import NeuroMLMorphology, NeuriteDistribution, Morphology as Morph, IonChannelDistribution
+n=100 
 
 def create_somas(n):
     somas = []
@@ -41,3 +44,7 @@ def generate_spike_times(i):
         return [gen() for j in i]
     else:
         return gen()
+
+somas= create_somas(n)
+dendrites = create_dends(n,somas)
+neurons= soma_dend(somas, dendrites) 

@@ -1,5 +1,10 @@
 from pyNN.standardmodels import StandardIonChannelModel, build_translations
 import pyNN.neuron as sim
+from pyNN.morphology import NeuroMLMorphology, NeuriteDistribution, Morphology as Morph, IonChannelDistribution
+from pyNN.parameters import IonicSpecies
+from neuron import h, nrn, hclass
+from pyNN.neuron.cells import RandomSpikeSource
+from pyNN.standardmodels.cells import SpikeSourceGamma
 
 class NaChannel(StandardIonChannelModel):
     default_parameters = {
@@ -122,3 +127,47 @@ class KsChannel(StandardIonChannelModel):
             "e_rev": float,
             "vt": float
         }
+class SetRate(object):
+    """
+    A callback which changes the firing rate of a population of poisson
+    processes at a fixed interval.
+    """
+
+    def __init__(self, population_source, population_neuron, interval=20.0):
+        self.population_source = population_source
+        self.population_neuron = population_neuron
+        self.interval = interval
+        
+    def __call__(self, t):
+        rate = (83+70*np.sin(25*t/1000))
+        self.population_source.set(beta=rate)
+        return t + self.interval
+class RandomGammaStartSpikeSource(hclass(h.GammaProcess)):
+    
+    parameter_names = ('alpha', 'beta', 'start', 'duration')
+
+    def __init__(self, alpha=1, beta=0.1, start=0, duration=0):
+        self.alpha = alpha
+        self.beta = beta
+        self.start = start
+        self.duration = duration
+        self.spike_times = h.Vector(0)
+        self.source = self
+        self.rec = h.NetCon(self, None)
+        self.switch = h.NetCon(None, self)
+        self.source_section = None
+        self.seed(state.mpi_rank + state.native_rng_baseseed)
+
+    def __new__(cls, *arg, **kwargs):
+        return super().__new__(cls, *arg, **kwargs)
+
+class SpikeSourceGammaStart(SpikeSourceGamma):
+    
+
+    translations = build_translations(
+        ('alpha',    'alpha'),
+        ('beta',     'beta',    0.001),
+        ('start',    'start'),
+        ('duration', 'duration'),
+    )
+    model = RandomGammaStartSpikeSource
