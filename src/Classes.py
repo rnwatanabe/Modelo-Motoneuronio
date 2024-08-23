@@ -5,6 +5,8 @@ from pyNN.parameters import IonicSpecies
 from neuron import h, nrn, hclass
 from pyNN.neuron.cells import RandomSpikeSource
 from pyNN.standardmodels.cells import SpikeSourceGamma
+from pyNN.neuron.simulator import state
+import numpy as np
 
 class NaChannel(StandardIonChannelModel):
     default_parameters = {
