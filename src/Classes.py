@@ -67,6 +67,7 @@ class cell_class(sim.MultiCompartmentNeuron):
             self.post_synaptic_entities = {'syn': sim.CondExpPostSynapticResponse}
             
             super(cell_class, self).__init__(**parameters)
+            
 class KfChannel(StandardIonChannelModel):
     default_parameters = {
         "conductance_density": 0.12, #uniform('all', 0.12),

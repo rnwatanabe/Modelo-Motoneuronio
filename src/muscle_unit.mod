@@ -1,20 +1,12 @@
 NEURON {
-    SUFFIX motoneuron
-    NONSPECIFIC_CURRENT il
-    RANGE gna, gk_fast, gk_slow, gl, vt, el
-    GLOBAL alpha_m, alpha_h, alpha_n, pinf, beta_m, beta_h, beta_n, ptau
-    THREADSAFE : assigned GLOBALs will be per thread
-
+    POINT_PROCESS muscle_unit
+    POINTER spike
+    RANGE Tc, A
 }
 
-UNITS {
-    (mA) = (milliamp)
-    (mV) = (millivolt)
-    (S) = (siemens)
-}
 
 PARAMETER {
-    Tc = 0.9 (nS/um2) <0,1e9>
+    Tc = 0.9
     A = 1
 }
 
@@ -23,7 +15,7 @@ ASSIGNED {
 }
 
 STATE {
-    F, dF
+    F dF
 }
 
 INITIAL {
@@ -32,9 +24,10 @@ INITIAL {
     spike = 0
 }
 
-? currents
+
 BREAKPOINT {
-    SOLVE states METHOD cnexp   
+    SOLVE states METHOD cnexp
+    F = A*F
 }
 
 DERIVATIVE states {

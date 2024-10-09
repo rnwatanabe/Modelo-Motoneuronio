@@ -1,8 +1,5 @@
 NEURON {
     SUFFIX motoneuron
-    USEION na READ ena WRITE ina
-    USEION ks READ eks WRITE iks
-    USEION kf READ ekf WRITE ikf
     NONSPECIFIC_CURRENT il
     RANGE gna, gk_fast, gk_slow, gl, vt, el
     GLOBAL alpha_m, alpha_h, alpha_n, pinf, beta_m, beta_h, beta_n, ptau
