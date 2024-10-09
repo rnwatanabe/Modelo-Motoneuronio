@@ -1,5 +1,5 @@
 NEURON {
-    POINT_PROCESS muscle_unit
+    ARTIFICIAL_CELL muscle_unit
     POINTER spike
     RANGE Tc, A
 }

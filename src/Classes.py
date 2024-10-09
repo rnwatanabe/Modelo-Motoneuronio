@@ -58,16 +58,13 @@ class cell_class(sim.MultiCompartmentNeuron):
             self.label = "mn1"
             self.ion_channels = {'pas_soma': PassiveLeak, 'pas_dend': sim.PassiveLeak,
                                'na': NaChannel, 'kf': KfChannel, 'ks': KsChannel}
-            self.units = {'v':'mV',
-                          'gsyn_exc': 'uS',
-                          'gsyn_inh': 'uS',
-                          'na.m': 'dimensionless', 'na.h': 'dimensionless', 'kf.n': 'dimensionless', 
-                          'ks.p': 'dimensionless', 'na.ina': 'mA/cm2', 'kf.ikf': 'mA/cm2', 
-                          'ks.iks': 'mA/cm2'}
+            self.units = {'v':'mV', 'gsyn_exc': 'uS', 'gsyn_inh': 'uS', 'na.m': 'dimensionless', 
+                          'na.h': 'dimensionless', 'kf.n': 'dimensionless', 'ks.p': 'dimensionless', 
+                          'na.ina': 'mA/cm2', 'kf.ikf': 'mA/cm2', 'ks.iks': 'mA/cm2'}
             self.post_synaptic_entities = {'syn': sim.CondExpPostSynapticResponse}
             
             super(cell_class, self).__init__(**parameters)
-            
+
 class KfChannel(StandardIonChannelModel):
     default_parameters = {
         "conductance_density": 0.12, #uniform('all', 0.12),
