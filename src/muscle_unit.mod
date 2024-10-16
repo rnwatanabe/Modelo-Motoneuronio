@@ -12,27 +12,28 @@ PARAMETER {
 
 ASSIGNED {
     spike
+    F
 }
 
 STATE {
-    F dF
+    F1 dF1
 }
 
 INITIAL {
-    F = 0
-    dF = 0
+    F1 = 0
+    dF1 = 0
     spike = 0
 }
 
 
 BREAKPOINT {
     SOLVE states METHOD cnexp
-    F = A*F
+    F = A*F1
 }
 
 DERIVATIVE states {
-    dF' = -2/Tc*dF-1/(Tc*Tc)*F+spike/Tc
-    F' = dF
+    dF1' = -2/Tc*dF1-1/(Tc*Tc)*F1+spike/Tc
+    F1' = dF1
     spike = 0
 }
 
