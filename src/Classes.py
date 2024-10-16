@@ -142,6 +142,7 @@ class SetRate(object):
         rate = (83+70*np.sin(25*t/1000))
         self.population_source.set(beta=rate)
         return t + self.interval
+        
 class RandomGammaStartSpikeSource(hclass(h.GammaProcess)):
     
     parameter_names = ('alpha', 'beta', 'start', 'duration')
