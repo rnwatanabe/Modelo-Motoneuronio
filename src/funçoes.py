@@ -49,3 +49,61 @@ def generate_spike_times(i):
 # somas= create_somas(n)
 # dendrites = create_dends(n,somas)
 # neurons= soma_dend(somas, dendrites) 
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+
+def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem=4, freq_corte=0.001, tempo_max=1000):
+    """
+    Função que gera o impulso de Dirac para os tempos de disparo de um neurônio e aplica um filtro Butterworth.
+    
+    Parâmetros:
+        spiketrains (list): Lista com os trens de disparo de neurônios.
+        neuronio (int): Índice do neurônio a ser processado.
+        delta_t (float): Intervalo de tempo. Padrão é 0.00005.
+        filtro_ordem (int): Ordem do filtro Butterworth. Padrão é 4.
+        freq_corte (float): Frequência de corte normalizada para o filtro Butterworth. Padrão é 0.001.
+        tempo_max (float): Tempo máximo para o eixo x (em milissegundos). Padrão é 1000.
+    """
+    
+    # Array com os tempos de disparo do neurônio
+    tempos_neuronios = spiketrains[neuronio].as_array()
+
+    # Criação do vetor de tempo
+    t = np.arange(0, tempo_max, delta_t * 1000)
+    impulso_dirac = np.zeros_like(t)
+
+    # Adiciona o impulso de Dirac em cada tempo de disparo do neurônio
+    for tempo in tempos_neuronios:
+        idx = np.argmin(np.abs(t - tempo))  # encontra o índice mais próximo do tempo de disparo
+        impulso_dirac[idx] = 1 / delta_t
+
+    # Filtro Butterworth
+    b, a = signal.butter(filtro_ordem, freq_corte)
+
+    # Aplicação do filtro
+    filtered_impulso = signal.filtfilt(b, a, impulso_dirac)
+
+    # Plotar os resultados
+    plt.figure(figsize=(10, 6))
+    plt.plot(t, filtered_impulso, label="Disparo do Neurônio (Filtrado)")
+    plt.title("Tempos de Disparo do Neurônio (Filtrado)")
+    plt.xlabel("Tempo (ms)")
+    plt.ylabel("Amplitude")
+    plt.xlim(0, tempo_max)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(t, impulso_dirac, label="Disparo do Neurônio (Impulso de Dirac)")
+    plt.title("Tempos de Disparo do Neurônio (Impulso de Dirac)")
+    plt.xlabel("Tempo (ms)")
+    plt.ylabel("Amplitude")
+    plt.xlim(0, tempo_max)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+plot_disparos_neuronios(data.spiketrains, neuronio=1)
