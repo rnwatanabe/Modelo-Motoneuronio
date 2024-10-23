@@ -57,7 +57,7 @@ class cell_class(sim.MultiCompartmentNeuron):
     
             self.label = "mn1"
             self.ion_channels = {'pas_soma': PassiveLeak, 'pas_dend': sim.PassiveLeak,
-                               'na': NaChannel, 'kf': KfChannel, 'ks': KsChannel}
+                                 'na': NaChannel, 'kf': KfChannel, 'ks': KsChannel}
             self.units = {'v':'mV', 'gsyn_exc': 'uS', 'gsyn_inh': 'uS', 'na.m': 'dimensionless', 
                           'na.h': 'dimensionless', 'kf.n': 'dimensionless', 'ks.p': 'dimensionless', 
                           'na.ina': 'mA/cm2', 'kf.ikf': 'mA/cm2', 'ks.iks': 'mA/cm2'}

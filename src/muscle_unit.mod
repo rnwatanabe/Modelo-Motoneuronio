@@ -1,12 +1,11 @@
 NEURON {
-    ARTIFICIAL_CELL muscle_unit
-    POINTER spike
-    RANGE Tc, A
+    POINT_PROCESS muscle_unit
+    RANGE Tc, A, spike, F
 }
 
 
 PARAMETER {
-    Tc = 0.9
+    Tc = 100
     A = 1
 }
 
@@ -16,28 +15,28 @@ ASSIGNED {
 }
 
 STATE {
-    F1 dF1
+    x1 x2
 }
 
 INITIAL {
-    F1 = 0
-    dF1 = 0
+    x1 = 0
+    x2 = 0
     spike = 0
 }
 
 
 BREAKPOINT {
     SOLVE states METHOD cnexp
-    F = A*F1
+    F = A*x1
 }
 
 DERIVATIVE states {
-    dF1' = -2/Tc*dF1-1/(Tc*Tc)*F1+spike/Tc
-    F1' = dF1
+    x1' = x2
+    x2' = -2/Tc*x2-1/(Tc*Tc)*x1+spike/Tc
     spike = 0
 }
 
 NET_RECEIVE (weight) {
-	spike = 1/dt
+	spike = 2.7182818/dt
 }
 
