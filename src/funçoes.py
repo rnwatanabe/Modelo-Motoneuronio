@@ -56,15 +56,15 @@ from scipy import signal
 
 def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem=4, freq_corte=0.001, tempo_max=1000):
     """
-    Função que gera o impulso de Dirac para os tempos de disparo de um neurônio e aplica um filtro Butterworth.
+    Função que gera o impulso de Dirac para os tempos de disparo de um neurônio.
     
     Parâmetros:
         spiketrains (list): Lista com os trens de disparo de neurônios.
         neuronio (int): Índice do neurônio a ser processado.
-        delta_t (float): Intervalo de tempo. Padrão é 0.00005.
-        filtro_ordem (int): Ordem do filtro Butterworth. Padrão é 4.
-        freq_corte (float): Frequência de corte normalizada para o filtro Butterworth. Padrão é 0.001.
-        tempo_max (float): Tempo máximo para o eixo x (em milissegundos). Padrão é 1000.
+        delta_t (float): Intervalo de tempo. 
+        filtro_ordem (int): Ordem do filtro Butterworth. 
+        freq_corte (float): Frequência de corte normalizada para o filtro Butterworth.
+        tempo_max (float): Tempo máximo para o eixo x (em milissegundos). 
     """
     
     # Array com os tempos de disparo do neurônio
@@ -106,4 +106,32 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
     plt.legend()
     plt.show()
 
-plot_disparos_neuronios(data.spiketrains, neuronio=1)
+#plot_disparos_neuronios(data.spiketrains, neuronio=1)
+
+def neuromuscular_system(cells, n):   
+    muscle_units = dict()
+    force_objects = dict()
+    neuromuscular_junctions = dict()
+
+    for i in range(n):
+        muscle_units[i] = h.Section(name=f'mu{i}')
+        force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
+        neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
+        
+        force_objects[i].A = 0.03 + (3 - 0.03) * i / n
+        force_objects[i].Tc = 140 + (96 - 140) * i / n
+    
+    return muscle_units, force_objects, neuromuscular_junctions
+
+def soma_força(force_objects, n):
+    f= dict()
+    força_total = h.Vector()
+    força_total.resize(0) #vetor vazio
+
+    for i in range(n):
+        f[i] = h.Vector().record(force_objects[i]._ref_F)
+
+    for i in range(n):      
+        força_total.add(f[i])   #soma as forças
+
+    return f, força_total
