@@ -118,7 +118,7 @@ def neuromuscular_system(cells, n):
         force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
         neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
         
-        force_objects[i].A = 0.03 + (3 - 0.03) * i / n
+        force_objects[i].Fmax = 0.03 + (3 - 0.03) * i / n
         force_objects[i].Tc = 140 + (96 - 140) * i / n
     
     return muscle_units, force_objects, neuromuscular_junctions

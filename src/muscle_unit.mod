@@ -6,7 +6,7 @@ NEURON {
 
 PARAMETER {
     Tc = 100
-    A = 1
+    Fmax = 1
 }
 
 ASSIGNED {
@@ -27,7 +27,7 @@ INITIAL {
 
 BREAKPOINT {
     SOLVE states METHOD cnexp
-    F = A*x1
+    F = Fmax*x1
 }
 
 DERIVATIVE states {
