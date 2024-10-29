@@ -2,6 +2,7 @@ from neuroml import Morphology, Segment, Point3DWithDiam as P
 from pyNN.morphology import NeuroMLMorphology, NeuriteDistribution, Morphology as Morph, IonChannelDistribution
 import pyNN.neuron as sim
 import numpy as np
+from neuron import h, nrn, hclass
 
 def create_somas(n):
     somas = []
@@ -108,14 +109,17 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
 
 #plot_disparos_neuronios(data.spiketrains, neuronio=1)
 
-def neuromuscular_system(cells, n):   
+def neuromuscular_system(cells, n, calcium=False):   
     muscle_units = dict()
     force_objects = dict()
     neuromuscular_junctions = dict()
 
     for i in range(n):
         muscle_units[i] = h.Section(name=f'mu{i}')
-        force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
+        if calcium:
+            force_objects[i] = h.muscle_unit_calcium(muscle_units[i](0.5))
+        else:
+            force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
         neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
         
         force_objects[i].Fmax = 0.03 + (3 - 0.03) * i / n

@@ -1,6 +1,6 @@
 NEURON {
     POINT_PROCESS muscle_unit
-    RANGE Tc, A, spike, F
+    RANGE Tc, Fmax, spike, F
 }
 
 
