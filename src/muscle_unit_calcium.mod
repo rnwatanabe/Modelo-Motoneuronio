@@ -65,8 +65,8 @@ ASSIGNED{
 }
 
 STATE{
-    x1 x2 CaSR CaT AM CaSRCS Ca CaB
-	: xm
+    CaSR CaT AM
+	:x1 x2 xm  CaSRCS Ca CaB
 }
 
 INITIAL{
@@ -84,7 +84,7 @@ INITIAL{
 
 BREAKPOINT{
 	R = CaSR*Rmax*(exp(-t/tau2)*R1 - exp(-t/tau1-t/tau2)*R2)
-	printf("R = %g", R)
+	:printf("R = %g", R)
 	rate (CaT, AM, t)
     SOLVE states_force METHOD derivimplicit
     F = Fmax*x1
@@ -96,11 +96,11 @@ DERIVATIVE states_force{
 	spike = 0
 	CaSR' = -k1*CS0*CaSR + (k1*CaSR+k2)*CaSRCS - R + U(Ca)
 	: printf("CaSR = %g", CaSR)
-	CaSRCS' = k1*CS0*CaSR - (k1*CaSR+k2)*CaSRCS
+	:CaSRCS' = k1*CS0*CaSR - (k1*CaSR+k2)*CaSRCS
 	:Ca' = - k5*T0*Ca + (k5*Ca+k6)*CaT - k3*B0*Ca + (k3*Ca+k4)*CaB + R - U(Ca)
 	:CaB' = k3*B0*Ca - (k3*Ca+k4)*CaB
-	:CaT' = k5*T0*Ca - (k5*Ca+k6)*CaT
-	:AM' = (AMinf -AM)/AMtau
+	CaT' = k5*T0*Ca - (k5*Ca+k6)*CaT
+	AM' = (AMinf -AM)/AMtau
 	
 }
 
@@ -125,7 +125,6 @@ NET_RECEIVE (weight) {
 	spike = 2.7182818/dt
     R1 = R1 + exp(t/tau2)
  	R2 = R2 + exp(t/tau1+t/tau2)
-	:printf("R1 = %g", R1)
-	:printf("R2 = %g", R2)
+	:printf("R1 = %g, R2 = %g, R = %g, CaSR = %g", R1, R2, R, CaSR)
 }
 
