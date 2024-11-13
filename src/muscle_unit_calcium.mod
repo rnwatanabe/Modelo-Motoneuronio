@@ -1,12 +1,12 @@
 NEURON {
     POINT_PROCESS muscle_unit_calcium
-    RANGE Tc, Fmax, spike, F
+    RANGE Tc, Fmax, spike, F, A, temp
 	RANGE k1, k2, k3, k4, k5, k6, k, k5i, k6i
 	RANGE Umax, Rmax, tau1, tau2, R, R1, R2
 	RANGE phi0, phi1, phi2, phi3, phi4
 	RANGE AMinf, AMtau, SF_AM, T0
 	RANGE c1i, c1n1, c1n2, c1n3, tauc1, c2i, c2n1, c2n2, c2n3, tauc2, c3, c4, c5, c1inf, c2inf
-	:RANGE acm, alpha, alpha1, alpha2, alpha3, beta, gamma
+	RANGE acm, alpha :alpha1, alpha2, alpha3, beta, gamma
 }
 
 
@@ -51,17 +51,19 @@ PARAMETER{
 	c3 = 54.717
 	c4 = -18.847
 	c5 = 3.905
-	:alpha = 2
+	alpha = 2
 	:alpha1 = 4.77
 	:alpha2 = 400
 	:alpha3 = 160
 	:beta = 0.47
 	:gamma = 0.001
+	temp = 0
 }
 
 ASSIGNED{
     spike
     F
+	A
 	k5
 	k6
 	AMinf
@@ -94,34 +96,37 @@ INITIAL{
 
 
 BREAKPOINT{
-	R = CaSR*Rmax*(exp(-t/tau2)*R1 - exp(-t/tau1-t/tau2)*R2)
+	R1 = R1*exp(-dt/tau2)
+	R2 = R2*exp(-dt/tau2)*exp(-dt/tau1)
+	R = CaSR*Rmax*(R1 - R2)
 	:printf("R = %g", R)
 	rate (CaT, AM, t)
-    SOLVE states_force METHOD cnexp
+    SOLVE states_force METHOD derivimplicit
     F = Fmax*x1
 	spike = 0
-	printf("CaSR = %g", CaSR)
+	A = AM^alpha
+	:printf("CaSR = %g", CaSR)
 }
 
 DERIVATIVE states_force{
-    x1' = 0 : x2
-    x2' = 0 : -2/Tc*x2 - 1/(Tc*Tc)*x1 + spike/Tc    	
-	CaSR' = -k1*CS0*CaSR + (k1*CaSR+k2)*CaSRCS - R + U(Ca)	
+    x1' = x2
+    x2' = -2/Tc*x2 - 1/(Tc*Tc)*x1 + CaT/0.0001/Tc    	
+	CaSR' = - R + U(Ca) -k1*CS0*CaSR + (k1*CaSR+k2)*CaSRCS 
 	CaSRCS' = k1*CS0*CaSR - (k1*CaSR+k2)*CaSRCS
-	Ca' = -k5*T0*Ca + (k5*Ca+k6)*CaT - k3*B0*Ca + (k3*Ca+k4)*CaB + R - U(Ca)
-	CaB' = k3*B0*Ca - (k3*Ca+k4)*CaB
+	Ca' = -k5*T0*Ca + (k5*Ca+k6)*CaT + R - U(Ca) - k3*B0*Ca +(k3*Ca+k4)*CaB 
+	CaB' = k3*B0*Ca -(k3*Ca+k4)*CaB
 	CaT' = k5*T0*Ca - (k5*Ca+k6)*CaT
-	AM' = (AMinf -AM)/AMtau
-	c1' = (c1inf - c1)/tauc1
-	c2' = (c2inf - c2)/tauc2
+	AM' = 0 :(AMinf -AM)/AMtau
+	c1' = 0 :(c1inf - c1)/tauc1
+	c2' = 0 :(c2inf - c2)/tauc2
 	
 }
 
 PROCEDURE rate(CaT (M), AM (M), t(ms)) {
-	k5 = phi(-8)*k5i
+	k5 = phi(5)*k5i
 	k6 = k6i/(1 + SF_AM*AM)
-	AMinf = 0.5*(1+tanh(((CaT/T0)-c1)/c2))
-	AMtau = c3/(cosh(((CaT/T0)-c4)/(2*c5)))
+	AMinf = 0.5*(1+tanh((CaT/T0-c1)/c2))
+	AMtau = c3/(cosh((CaT/T0-c4)/(2*c5)))
 	c1inf = c1n1*(1+tanh((CaT/T0-c1n2)/c1n3))+c1i
 	c2inf = c2n1*(1+tanh((CaT/T0-c2n2)/c2n3))+c2i
 }
@@ -132,14 +137,16 @@ FUNCTION U(x) {
 }
 
 FUNCTION phi(x) {
-	if (x <= -8) {phi = phi1*x + phi2}
+	if (x <= 5) {phi = phi1*x + phi2}
 	else {phi = phi3*x + phi4}
 }
 
 NET_RECEIVE (weight) {
 	spike = 2.7182818/dt
-    R1 = R1 + exp(t/tau2)
- 	R2 = R2 + exp(t/tau1+t/tau2)
+    R1 = R1 + 1
+ 	R2 = R2 + 1
+	:temp = (AMinf -AM)/AMtau
+	:printf("%g ", temp)
 	:printf("R1 = %g, R2 = %g, R = %g, CaSR = %g", R1, R2, R, CaSR)
 }
 
