@@ -3,6 +3,8 @@ from pyNN.morphology import NeuroMLMorphology, NeuriteDistribution, Morphology a
 import pyNN.neuron as sim
 import numpy as np
 
+
+
 def create_somas(n):
     somas = []
     for i in range(n):
@@ -59,12 +61,12 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
     Função que gera o impulso de Dirac para os tempos de disparo de um neurônio.
     
     Parâmetros:
-        spiketrains (list): Lista com os trens de disparo de neurônios.
-        neuronio (int): Índice do neurônio a ser processado.
-        delta_t (float): Intervalo de tempo. 
-        filtro_ordem (int): Ordem do filtro Butterworth. 
-        freq_corte (float): Frequência de corte normalizada para o filtro Butterworth.
-        tempo_max (float): Tempo máximo para o eixo x (em milissegundos). 
+        spiketrains: Lista com os trens de disparo de neurônios.
+        neuronio: Índice do neurônio a ser processado.
+        delta_t: Intervalo de tempo. 
+        filtro_ordem : Ordem do filtro Butterworth. 
+        freq_corte: Frequência de corte normalizada para o filtro Butterworth.
+        tempo_max: Tempo máximo para o eixo x (em milissegundos). 
     """
     
     # Array com os tempos de disparo do neurônio
@@ -86,7 +88,6 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
     filtered_impulso = signal.filtfilt(b, a, impulso_dirac)
 
     # Plotar os resultados
-    plt.figure(figsize=(10, 6))
     plt.plot(t, filtered_impulso, label="Disparo do Neurônio (Filtrado)")
     plt.title("Tempos de Disparo do Neurônio (Filtrado)")
     plt.xlabel("Tempo (ms)")
@@ -108,7 +109,7 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
 
 #plot_disparos_neuronios(data.spiketrains, neuronio=1)
 
-def neuromuscular_system(cells, n):   
+def neuromuscular_system(cells, n, h):   
     muscle_units = dict()
     force_objects = dict()
     neuromuscular_junctions = dict()
@@ -123,15 +124,37 @@ def neuromuscular_system(cells, n):
     
     return muscle_units, force_objects, neuromuscular_junctions
 
-def soma_força(force_objects, n):
-    f= dict()
-    força_total = h.Vector()
-    força_total.resize(0) #vetor vazio
+def neuromuscular_system(cells, n, h, Umax = 2000):   
+    muscle_units = dict()
+    force_objects = dict()
+    neuromuscular_junctions = dict()
 
     for i in range(n):
-        f[i] = h.Vector().record(force_objects[i]._ref_F)
+        muscle_units[i] = h.Section(name=f'mu{i}')
+        force_objects[i] = h.muscle_unit_calcium(muscle_units[i](0.5))
+        neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
+        
+        force_objects[i].Fmax = 0.03 + (3 - 0.03) * i / n
+        force_objects[i].Tc = 140 + (96 - 140) * i / n
+        force_objects[i].Umax =  Umax 
+        
+    
+    return muscle_units, force_objects, neuromuscular_junctions
 
-    for i in range(n):      
-        força_total.add(f[i])   #soma as forças
+def soma_força(force_objects, h, f):
+    max_len = max(len(f[i]) for i in force_objects.keys())
+    
+    # Cria um vetor para armazenar a força total ao longo do tempo
+    forca_total = h.Vector(max_len)
+    forca_total.fill(0)  # Inicializa com zeros
+    
+    # Soma as forças de todas as unidades motoras
+    for i in force_objects.keys():
+        forca_individual = f[i]
+        forca_total.add(forca_individual)  # Adiciona cada vetor de força ao total
+        
+    return forca_total
 
-    return f, força_total
+
+
+

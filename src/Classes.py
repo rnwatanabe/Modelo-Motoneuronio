@@ -8,6 +8,8 @@ from pyNN.standardmodels.cells import SpikeSourceGamma
 from pyNN.neuron.simulator import state
 import numpy as np
 
+
+
 class NaChannel(StandardIonChannelModel):
     default_parameters = {
         "conductance_density": 0.12, #uniform('all', 0.12),
@@ -139,7 +141,7 @@ class SetRate(object):
         self.interval = interval
         
     def __call__(self, t):
-        rate = (83+70*np.sin(25*t/1000))
+        rate = (83+70* np.sin(25*t/1000))
         self.population_source.set(beta=rate)
         return t + self.interval
         
@@ -172,3 +174,70 @@ class SpikeSourceGammaStart(SpikeSourceGamma):
         ('duration', 'duration'),
     )
     model = RandomGammaStartSpikeSource
+
+    # Classe SetRate para alterar a taxa de disparo
+class SetRate(object):
+    """
+    Um callback que altera a taxa de disparo de uma população de processos
+    Poisson em intervalos fixos, com base nas forças das unidades motoras.
+    """
+
+    def __init__(self, population_source, population_neuron, force_objects, interval=20.0):
+        self.population_source = population_source
+        self.population_neuron = population_neuron
+        self.force_objects = force_objects  
+        self.interval = interval
+
+    def __call__(self, t):
+        total_force = sum(force.F for force in self.force_objects.values())
+        rate = 83 + ((200 - total_force) * 0.01)
+        self.population_source.set(beta=rate)
+    
+        return t + self.interval
+    
+class SetRate(object):
+    """
+    Um callback que altera a taxa de disparo de uma população de processos
+    Poisson em intervalos fixos, com base nas forças das unidades motoras.
+    """
+
+    def __init__(self, population_source, population_neuron, force_objects, interval=20.0, ref=0):
+        self.population_source = population_source
+        self.population_neuron = population_neuron
+        self.force_objects = force_objects  
+        self.interval = interval
+        self.ref = ref 
+        print(f'valor: {self.ref}')
+
+    def __call__(self, t):
+        total_force = sum(force.F for force in self.force_objects.values())
+        rate = 83 + ((self.ref - total_force) * 0.01)
+        self.population_source.set(beta=rate)
+        
+        return t + self.interval
+
+    
+
+
+
+
+
+
+
+
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
