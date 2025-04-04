@@ -68,15 +68,15 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
     """
     
     # Array com os tempos de disparo do neurônio
-    tempos_neuronios = spiketrains[neuronio].as_array()
+    tempos_neuronios = spiketrains
 
     # Criação do vetor de tempo
-    t = np.arange(0, tempo_max, delta_t * 1000)
+    t = np.arange(0, tempo_max, delta_t)
     impulso_dirac = np.zeros_like(t)
 
     # Adiciona o impulso de Dirac em cada tempo de disparo do neurônio
     for tempo in tempos_neuronios:
-        idx = np.argmin(np.abs(t - tempo))  # encontra o índice mais próximo do tempo de disparo
+        idx = np.argmin(np.abs(t - tempo/1000))  # encontra o índice mais próximo do tempo de disparo
         impulso_dirac[idx] = 1 / delta_t
 
     # Filtro Butterworth
@@ -86,44 +86,45 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
     filtered_impulso = signal.filtfilt(b, a, impulso_dirac)
 
     # Plotar os resultados
-    plt.plot(t, filtered_impulso, label="Disparo do Neurônio (Filtrado)")
-    plt.title("Tempos de Disparo do Neurônio (Filtrado)")
-    plt.xlabel("Tempo (ms)")
-    plt.ylabel("Amplitude")
-    plt.xlim(0, tempo_max)
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+    # plt.plot(t, filtered_impulso, label="Disparo do Neurônio (Filtrado)")
+    # plt.title("Tempos de Disparo do Neurônio (Filtrado)")
+    # plt.xlabel("Tempo (ms)")
+    # plt.ylabel("Amplitude")
+    # plt.xlim(0, tempo_max)
+    # plt.grid(True)
+    # plt.legend()
+    # plt.show()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(t, impulso_dirac, label="Disparo do Neurônio (Impulso de Dirac)")
-    plt.title("Tempos de Disparo do Neurônio (Impulso de Dirac)")
-    plt.xlabel("Tempo (ms)")
-    plt.ylabel("Amplitude")
-    plt.xlim(0, tempo_max)
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+    # plt.figure(figsize=(10, 6))
+    # plt.plot(t, impulso_dirac, label="Disparo do Neurônio (Impulso de Dirac)")
+    # plt.title("Tempos de Disparo do Neurônio (Impulso de Dirac)")
+    # plt.xlabel("Tempo (ms)")
+    # plt.ylabel("Amplitude")
+    # plt.xlim(0, tempo_max)
+    # plt.grid(True)
+    # plt.legend()
+    # plt.show()
 
+    return filtered_impulso, t
 #plot_disparos_neuronios(data.spiketrains, neuronio=1)
 
-def neuromuscular_system(cells, n):   
-    muscle_units = dict()
-    force_objects = dict()
-    neuromuscular_junctions = dict()
+# def neuromuscular_system(cells, n):   
+#     muscle_units = dict()
+#     force_objects = dict()
+#     neuromuscular_junctions = dict()
 
-    for i in range(n):
-        muscle_units[i] = h.Section(name=f'mu{i}')
-        if calcium:
-            force_objects[i] = h.muscle_unit_calcium(muscle_units[i](0.5))
-        else:
-            force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
-        neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
+#     for i in range(n):
+#         muscle_units[i] = h.Section(name=f'mu{i}')
+#         if calcium:
+#             force_objects[i] = h.muscle_unit_calcium(muscle_units[i](0.5))
+#         else:
+#             force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
+#         neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
         
-        force_objects[i].Fmax = 0.03 + (3 - 0.03)*i/n
-        force_objects[i].Tc = 140 + (96 - 140)*i/n
+#         force_objects[i].Fmax = 0.03 + (3 - 0.03)*i/n
+#         force_objects[i].Tc = 140 + (96 - 140)*i/n
     
-    return muscle_units, force_objects, neuromuscular_junctions
+    # return muscle_units, force_objects, neuromuscular_junctions
 
 def neuromuscular_system(cells, n, h, Umax = 1000):   
     muscle_units = dict()
@@ -137,7 +138,8 @@ def neuromuscular_system(cells, n, h, Umax = 1000):
         
         force_objects[i].Fmax = 0.03 + (3 - 0.03) * i / n
         force_objects[i].Tc = 140 + (96 - 140) * i / n
-        force_objects[i].Umax =  Umax 
+        force_objects[i].Umax =  Umax
+        neuromuscular_junctions[i].delay = 0.86/(44+9/n*i)*1000
         
     
     return muscle_units, force_objects, neuromuscular_junctions
