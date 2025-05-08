@@ -45,5 +45,5 @@ Após a instalação o VS Code deve ser reinicializado para que variável de amb
 
 ## Teste
 
-Por enquanto, a melhor maneira de testar é executar todas as células do arquivo [testeRede.ipynb](testeRede.ipynb). Pegar a última versão do arquivo.
+Por enquanto, a melhor maneira de testar é executar todas as células do arquivo [Notebooks/testew_Ca_delays.ipynb](Notebooks/testew_Ca_delays.ipynb). Pegar a última versão do arquivo.
 
