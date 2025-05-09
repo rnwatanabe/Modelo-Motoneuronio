@@ -4,11 +4,11 @@ Rebeka Batichotti
 
 Renato Watanabe
 
-## Preparando o ambiente
+## Prepare the environment
 
-### No Linux
+### On Linux
 
-Executar as seguintes instruções:
+Execute the following instructions:
 
 `python -m venv modelpynn`
 
@@ -16,9 +16,9 @@ Executar as seguintes instruções:
 
 `pip install -r requirements.txt`
 
-### No Windows
+### On Windows
 
-Executar as seguintes instruções:
+Execute the following instructions:
 
 `python -m venv modelpynn`
 
@@ -26,24 +26,23 @@ Executar as seguintes instruções:
 
 `pip install -r requirements.txt`
 
+## Install Neuron
 
-## Instalação do Neuron
+Install Neuron separately. As it cannot be installed via pip on Windows, it was not included in the requirements.txt file.
 
-Instalar o Neuron separadamente. Como no Windows ele não pode ser instalado via pip, ele não foi incluído no arquivo requirements.txt. 
+### On Linux
 
-### No Linux
-
-digitar no terminal:
+Type in the terminal:
 
 `pip install neuron`
 
-### No Windows
+### On Windows
 
-Instalar o Neuron com o instalador em [https://github.com/neuronsimulator/nrn/releases/download/8.2.0/nrn-8.2.0.w64-mingw-py-37-38-39-310-setup.exe](https://github.com/neuronsimulator/nrn/releases/download/8.2.0/nrn-8.2.0.w64-mingw-py-37-38-39-310-setup.exe).
+Install Neuron with the installer at [https://github.com/neuronsimulator/nrn/releases/download/8.2.0/nrn-8.2.0.w64-mingw-py-37-38-39-310-setup.exe](https://github.com/neuronsimulator/nrn/releases/download/8.2.0/nrn-8.2.0.w64-mingw-py-37-38-39-310-setup.exe).
 
-Após a instalação o VS Code deve ser reinicializado para que variável de ambiente PYTHONPATH tenha o caminho do Neuron.
+After installation, VS Code should be restarted so that the PYTHONPATH environment variable has the Neuron path.
 
 ## Teste
 
-Por enquanto, a melhor maneira de testar é executar todas as células do arquivo [Notebooks/testew_Ca_delays.ipynb](Notebooks/testew_Ca_delays.ipynb). Pegar a última versão do arquivo.
+For now, the best way to test is to execute all the cells of the file [Notebooks/testew_Ca_delays.ipynb](Notebooks/testew_Ca_delays.ipynb). Get the latest version of the file.
 
