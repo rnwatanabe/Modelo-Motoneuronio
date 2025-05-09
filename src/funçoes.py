@@ -1,91 +1,214 @@
-from neuroml import Morphology, Segment, Point3DWithDiam as P
-from pyNN.morphology import NeuroMLMorphology, NeuriteDistribution, Morphology as Morph, IonChannelDistribution
+import numpy as np
 import pyNN.neuron as sim
-import numpy as np
-
-def create_somas(n):
-    somas = []
-    for i in range(n):
-        diameter = 77.5 + i * ((82.5-77.5)/n)
-        y = 18- i * (18/n)
-        soma= Segment(proximal=P(x=diameter, y=y, z=0, diameter=diameter),
-                       distal=P(x=0, y=0, z=0, diameter=diameter),
-                       name="soma", id=0)
-        somas.append(soma)
-    return somas
-
-def create_dends(n,somas):
-     dends=[]
-     for i in range(n):
-        y = 18- i * (18/n)
-        diameter = 41.5 + i * ((62.5-41.5)/n)
-        x_distal= -5500 + i * ((-6789+5500)/n)
-        dend = Segment(proximal=P(x=0, y=y, z=0, diameter=diameter),
-               distal=P(x=x_distal, y=y, z=0, diameter=diameter),
-               name="dendrite",
-               parent=somas[i], id=1)
-        dends.append(dend)
-     return dends
-
-def soma_dend(somas, dends):
-    combined= []
-    first_soma = somas[0]
-    for i in range(len(dends)):
-        combineds=NeuroMLMorphology(Morphology(segments=(somas[i], 
-                                                dends[i])))
-        combined.append(combineds)
-    return combined
-
-def generate_spike_times(i):
-    input_rate = 83
-    Tf = 100
-    number = int(Tf * input_rate / 1000.0)
-    gen = lambda: sim.Sequence(np.add.accumulate(np.random.exponential(1000.0 / input_rate, size=number)))
-    if hasattr(i, "__len__"):
-        return [gen() for j in i]
-    else:
-        return gen()
-
-# somas= create_somas(n)
-# dendrites = create_dends(n,somas)
-# neurons= soma_dend(somas, dendrites) 
-
-import numpy as np
-import matplotlib.pyplot as plt
+from neuroml import Morphology, Segment, Point3DWithDiam as P
+from pyNN.morphology import NeuroMLMorphology
 from scipy import signal
 
-def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem=4, freq_corte=0.001, tempo_max=1000):
+
+def create_somas(n: int) -> list[Segment]:
     """
-    Função que gera o impulso de Dirac para os tempos de disparo de um neurônio.
-    
-    Parâmetros:
-        spiketrains: Lista com os trens de disparo de neurônios.
-        neuronio: Índice do neurônio a ser processado.
-        delta_t: Intervalo de tempo. 
-        filtro_ordem : Ordem do filtro Butterworth. 
-        freq_corte: Frequência de corte normalizada para o filtro Butterworth.
-        tempo_max: Tempo máximo para o eixo x (em milissegundos). 
+    Creates a list of somas for a given number of neurons.
+
+    The somas are created with a diameter that increases linearly from 77.5 to 82.5 µm.
+    The linear increment of the diameter is (82.5 - 77.5) / n µm.
+
+    The y coordinate of the soma is 18 µm.
+    The linear increment of the y coordinate is 18 / n µm.
+
+    Parameters
+    ----------
+    n : int
+        The number of neurons.
+
+    Returns
+    -------
+    somas : list[Segment]
+        A list of somas.
     """
-    
-    # Array com os tempos de disparo do neurônio
+    diameter_min, diameter_max = 77.5, 82.5
+    diameter_step = (diameter_max - diameter_min) / n
+    y_start, y_step = 18, 18 / n
+
+    return [
+        Segment(
+            proximal=P(
+                x=diameter_min + i * diameter_step,
+                y=y_start - i * y_step,
+                z=0,
+                diameter=diameter_min + i * diameter_step,
+            ),
+            distal=P(x=0, y=0, z=0, diameter=diameter_min + i * diameter_step),
+            name="soma",
+            id=0,
+        )
+        for i in range(n)
+    ]
+
+
+def create_dends(n: int, somas: list[Segment]) -> list[Segment]:
+    """
+    Creates a list of dendrites for a given number of neurons.
+
+    The dendrites are created with a diameter that increases linearly from 41.5 to 62.5 µm.
+    The linear increment of the diameter is (62.5 - 41.5) / n µm.
+
+    The y coordinate of the dendrite is 18 µm.
+    The linear increment of the y coordinate is 18 / n µm.
+
+    The x coordinate of the distal end of the dendrite is -5500 + i * ((-6789 + 5500) / n) µm.
+    The linear increment of the x coordinate is ((-6789 + 5500) / n) µm.
+
+    The parent of the dendrite is the soma of the neuron.
+    The id of the dendrite is 1.
+
+    Parameters
+    ----------
+    n : int
+        The number of neurons.
+    somas : list[Segment]
+        The list of somas.
+
+    Returns
+    -------
+    dends : list[Segment]
+        The list of dendrites.
+    """
+    diameter_min, diameter_max = 41.5, 62.5
+    diameter_step = (diameter_max - diameter_min) / n
+    y_start, y_step = 18, 18 / n
+    x_distal_start, x_distal_step = -5500, (-6789 + 5500) / n
+
+    return [
+        Segment(
+            proximal=P(
+                x=0,
+                y=y_start - i * y_step,
+                z=0,
+                diameter=diameter_min + i * diameter_step,
+            ),
+            distal=P(
+                x=x_distal_start + i * x_distal_step,
+                y=y_start - i * y_step,
+                z=0,
+                diameter=diameter_min + i * diameter_step,
+            ),
+            name="dendrite",
+            parent=somas[i],
+            id=1,
+        )
+        for i in range(n)
+    ]
+
+
+def soma_dend(somas: list[Segment], dends: list[Segment]) -> list[NeuroMLMorphology]:
+    """
+    Combines a list of somas and a list of dendrites into a list of NeuroMLMorphology objects.
+
+    Parameters
+    ----------
+    somas : list[Segment]
+        The list of somas.
+    dends : list[Segment]
+        The list of dendrites.
+
+    Returns
+    -------
+    combined : list[NeuroMLMorphology]
+        The list of NeuroMLMorphology objects.
+    """
+    return [
+        NeuroMLMorphology(Morphology(segments=(s, d))) for s, d in zip(somas, dends)
+    ]
+
+
+def generate_spike_times(i: int | list[int]) -> list[float] | list[list[float]]:
+    """
+    Generates spike times for a given neuron.
+
+    The spike times are generated using a gamma point process.
+    The input rate is 83 Hz and the time window is 100 ms.
+
+    If a list of indices is provided, the spike times are generated for each neuron in the list.
+    If a single index is provided, the spike times are generated for the neuron with the given index.
+
+    Parameters
+    ----------
+    i : int | list[int]
+        The index of the neuron or a list of indices of the neurons.
+
+    Returns
+    -------
+    spike_times : list[float] | list[list[float]]
+        The spike times of the neuron or a list of spike times of the neurons.
+    """
+    input_rate = 83  # Hz
+    Tf = 100  # ms
+    number = int(Tf * input_rate / 1000.0)
+
+    # Generate spike times using gamma point process
+    if hasattr(i, "__len__"):
+        # For multiple neurons, create a list of spike time sequences
+        return [
+            sim.Sequence(
+                np.random.exponential(1000.0 / input_rate, size=number).cumsum()
+            )
+            for _ in i
+        ]
+    else:
+        # For a single neuron, return one sequence
+        return sim.Sequence(
+            np.random.exponential(1000.0 / input_rate, size=number).cumsum()
+        )
+
+
+def plot_disparos_neuronios(
+    spiketrains,
+    neuronio,
+    delta_t=0.00005,
+    filtro_ordem=4,
+    freq_corte=0.001,
+    tempo_max=1000,
+):
+    """
+    Plots the Dirac impulse for the spike times of a neuron.
+
+    Parameters
+    ----------
+    spiketrains : list[list[float]]
+        The spike times of the neurons.
+    neuronio : int
+        The index of the neuron to be processed.
+    delta_t : float
+        The time interval.
+    filtro_ordem : int
+        The order of the Butterworth filter.
+    freq_corte : float
+        The cutoff frequency for the Butterworth filter.
+    tempo_max : float
+        The maximum time for the x-axis (in milliseconds).
+    """
+
+    # Array with the spike times of the neuron
     tempos_neuronios = spiketrains
 
-    # Criação do vetor de tempo
+    # Creation of the time vector
     t = np.arange(0, tempo_max, delta_t)
     impulso_dirac = np.zeros_like(t)
 
-    # Adiciona o impulso de Dirac em cada tempo de disparo do neurônio
+    # Adds the Dirac impulse at each spike time of the neuron
     for tempo in tempos_neuronios:
-        idx = np.argmin(np.abs(t - tempo/1000))  # encontra o índice mais próximo do tempo de disparo
+        idx = np.argmin(
+            np.abs(t - tempo / 1000)
+        )  # finds the index closest to the spike time
         impulso_dirac[idx] = 1 / delta_t
 
-    # Filtro Butterworth
+    # Butterworth filter
     b, a = signal.butter(filtro_ordem, freq_corte)
 
-    # Aplicação do filtro
+    # Application of the filter
     filtered_impulso = signal.filtfilt(b, a, impulso_dirac)
 
-    # Plotar os resultados
+    # Plot the results
     # plt.plot(t, filtered_impulso, label="Disparo do Neurônio (Filtrado)")
     # plt.title("Tempos de Disparo do Neurônio (Filtrado)")
     # plt.xlabel("Tempo (ms)")
@@ -106,9 +229,11 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
     # plt.show()
 
     return filtered_impulso, t
-#plot_disparos_neuronios(data.spiketrains, neuronio=1)
 
-# def neuromuscular_system(cells, n):   
+
+# plot_disparos_neuronios(data.spiketrains, neuronio=1)
+
+# def neuromuscular_system(cells, n):
 #     muscle_units = dict()
 #     force_objects = dict()
 #     neuromuscular_junctions = dict()
@@ -120,44 +245,86 @@ def plot_disparos_neuronios(spiketrains, neuronio, delta_t=0.00005, filtro_ordem
 #         else:
 #             force_objects[i] = h.muscle_unit(muscle_units[i](0.5))
 #         neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
-        
+
 #         force_objects[i].Fmax = 0.03 + (3 - 0.03)*i/n
 #         force_objects[i].Tc = 140 + (96 - 140)*i/n
-    
-    # return muscle_units, force_objects, neuromuscular_junctions
 
-def neuromuscular_system(cells, n, h, Umax = 1000):   
+# return muscle_units, force_objects, neuromuscular_junctions
+
+
+def neuromuscular_system(cells, n, h, Umax=1000):
+    """
+    Creates a neuromuscular system.
+
+    Parameters
+    ----------
+    cells : list[Neuron]
+        The list of neurons.
+    n : int
+        The number of neurons.
+    h : object
+        The object of the simulation.
+    Umax : float
+        The maximum voltage of the neurons.
+
+    Returns
+    -------
+    muscle_units : dict
+        The dictionary of muscle units.
+    force_objects : dict
+        The dictionary of force objects.
+    neuromuscular_junctions : dict
+        The dictionary of neuromuscular junctions.
+    """
+
     muscle_units = dict()
     force_objects = dict()
     neuromuscular_junctions = dict()
 
     for i in range(n):
-        muscle_units[i] = h.Section(name=f'mu{i}')
+        muscle_units[i] = h.Section(name=f"mu{i}")
         force_objects[i] = h.muscle_unit_calcium(muscle_units[i](0.5))
-        neuromuscular_junctions[i] = h.NetCon(cells.all_cells[i]._cell.sections[0](0.5)._ref_v, force_objects[i], sec=cells.all_cells[i]._cell.sections[0])
-        
+        neuromuscular_junctions[i] = h.NetCon(
+            cells.all_cells[i]._cell.sections[0](0.5)._ref_v,
+            force_objects[i],
+            sec=cells.all_cells[i]._cell.sections[0],
+        )
+
         force_objects[i].Fmax = 0.03 + (3 - 0.03) * i / n
         force_objects[i].Tc = 140 + (96 - 140) * i / n
-        force_objects[i].Umax =  Umax
-        neuromuscular_junctions[i].delay = 0.86/(44+9/n*i)*1000
-        
-    
+        force_objects[i].Umax = Umax
+        neuromuscular_junctions[i].delay = 0.86 / (44 + 9 / n * i) * 1000
+
     return muscle_units, force_objects, neuromuscular_junctions
 
-def soma_força(force_objects, h, f):
+
+def soma_força(force_objects: dict, h: object, f: list[float]) -> object:
+    """
+    Sums the forces of the muscle units.
+
+    Parameters
+    ----------
+    force_objects : dict
+        The dictionary of force objects.
+    h : object
+        The object of the simulation.
+    f : list[float]
+        The list of forces.
+
+    Returns
+    -------
+    force_total : object
+        The total force.
+    """
     max_len = max(len(f[i]) for i in force_objects.keys())
-    
-    # Cria um vetor para armazenar a força total ao longo do tempo
-    forca_total = h.Vector(max_len)
-    forca_total.fill(0)  # Inicializa com zeros
-    
-    # Soma as forças de todas as unidades motoras
+
+    # Creates a vector to store the total force over time
+    force_total = h.Vector(max_len)
+    force_total.fill(0)  # Initializes with zeros
+
+    # Sums the forces of all muscle units
     for i in force_objects.keys():
-        forca_individual = f[i]
-        forca_total.add(forca_individual)  # Adiciona cada vetor de força ao total
-        
-    return forca_total
+        individual_force = f[i]
+        force_total.add(individual_force)  # Adds each force vector to the total
 
-
-
-
+    return force_total
