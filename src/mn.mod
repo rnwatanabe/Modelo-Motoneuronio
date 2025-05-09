@@ -68,17 +68,17 @@ DERIVATIVE states {
 }
 
 PROCEDURE rates(v(mV)) {
-    : Canais de Sodio
+    : Sodium Channels
     alpha_m = (-0.32*(v-vt-13))/(exp(-(v-vt-13)/4)-1)
     beta_m = 0.28*(v-vt-40)/(exp((v-vt-40)/5)-1)
     alpha_h = 0.128*exp(-(v-vt-17)/18)
     beta_h = 4/(1+exp(-(v-vt-40)/5))
 
-    : Canais de Potassio Rapido
+    : Fast Potassium Channels
     alpha_n = (-0.032*(v-vt-15))/(exp(-(v-vt-15)/5)-1)
     beta_n = 0.5*exp(-(v-vt-10)/40)
 
-    : Canais de Potassio Lento
+    : Slow Potassium Channels
     pinf = 1/(1+exp(-(v+35)/10))
     ptau = tau_max_p/(3.3*exp((v+35)/20)+exp(-(v+35)/20))
 }
