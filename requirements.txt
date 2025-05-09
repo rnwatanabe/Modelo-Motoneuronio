@@ -1,6 +1,0 @@
-numpy==1.26
-scipy
-pynn
-matplotlib
-pyNeuroML
-libNeuroML
