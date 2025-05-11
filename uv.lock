@@ -719,6 +719,14 @@ wheels = [
 ]
 
 [[package]]
+name = "impi-rt"
+version = "2021.15.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/59/21ad0caa10105e1e53d5902eb134b0de096b399b5475957015816e1afc86/impi_rt-2021.15.0-py2.py3-none-win_amd64.whl", hash = "sha256:d5ce4ae07c6af2b4deff6ec29a3171a922606fbd376400bc26e6955804db937e", size = 15409298 },
+]
+
+[[package]]
 name = "importlib-metadata"
 version = "8.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1526,6 +1534,7 @@ name = "modelo-motoneuronio"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "impi-rt", marker = "sys_platform == 'win32'" },
     { name = "jupyter" },
     { name = "libneuroml" },
     { name = "marimo" },
@@ -1544,6 +1553,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "impi-rt", marker = "sys_platform == 'win32'", specifier = ">=2021.15.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "libneuroml", specifier = ">=0.6.5" },
     { name = "marimo", specifier = ">=0.13.6" },
