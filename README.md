@@ -1,48 +1,56 @@
 # Modelo-Motoneurônio
 
-Rebeka Batichotti
+[![Python](https://img.shields.io/badge/Python->=_3.10-blue.svg)](https://www.python.org/)
+[![NEURON](https://img.shields.io/badge/NEURON->=_8.2.0-orange.svg)](https://neuron.yale.edu/neuron/)
 
-Renato Watanabe
+## 👥 Contributors
+- **Rebeka Batichotti**
+- **Renato Watanabe**
 
-## Prepare the environment
+## 📋 Overview
+*A computational model for motoneuron simulation.*
 
-### On Linux
+## ⚙️ Setup Environment
 
-Execute the following instructions:
+### 1. Install uv (Dependency Manager)
 
-`python -m venv modelpynn`
+Get the latest version of uv from [the official documentation](https://docs.astral.sh/uv/getting-started/installation/).
 
-`source modelpynn/bin/activate`
+<details open>
+<summary>💻 <b>Windows Installation</b></summary>
 
-`pip install -r requirements.txt`
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+</details>
 
-### On Windows
+<details>
+<summary>🐧 <b>Linux/MacOS Installation</b></summary>
 
-Execute the following instructions:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+</details>
 
-`python -m venv modelpynn`
+### 2. Install Dependencies
 
-`.\modelpynn\Scripts\activate`
+```bash
+uv sync
+```
 
-`pip install -r requirements.txt`
+#### 2.1 Windows NEURON Installation
 
-## Install Neuron
+> [!IMPORTANT]     
+> On Windows, NEURON must be installed separately as it cannot be installed via pip.  
+>
+> - Download from [NEURON Documentation](https://nrn.readthedocs.io/en/8.2.6/install/install_instructions.html)
+> - Install to the default directory: `C:\nrn`
 
-Install Neuron separately. As it cannot be installed via pip on Windows, it was not included in the requirements.txt file.
+Configure the `PYTHONPATH` environment variable for your IDE:
 
-### On Linux
+    | IDE    | Configuration                                               |
+    |--------|-------------------------------------------------------------|
+    | VSCode | PYTHONPATH environment variable preset automatically        |
+    | Others | Set PYTHONPATH to: `C:\nrn\lib\python`                      |
 
-Type in the terminal:
-
-`pip install neuron`
-
-### On Windows
-
-Install Neuron with the installer at [https://github.com/neuronsimulator/nrn/releases/download/8.2.0/nrn-8.2.0.w64-mingw-py-37-38-39-310-setup.exe](https://github.com/neuronsimulator/nrn/releases/download/8.2.0/nrn-8.2.0.w64-mingw-py-37-38-39-310-setup.exe).
-
-After installation, VS Code should be restarted so that the PYTHONPATH environment variable has the Neuron path.
-
-## Teste
-
-For now, the best way to test is to execute all the cells of the file [Notebooks/testew_Ca_delays.ipynb](Notebooks/testew_Ca_delays.ipynb). Get the latest version of the file.
 
