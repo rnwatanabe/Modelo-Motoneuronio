@@ -1,41 +1,14 @@
 import sys
-import argparse
 
 sys.path.append("./../")
-from pyNN.random import RandomDistribution, NumpyRNG
-from pyNN import neuron
-import pyNN.space as space
-import pyNN
 import pyNN.neuron as sim
 import numpy as np
-from pyNN.utility.plotting import Figure, Panel
-from pyNN.space import Grid2D, RandomStructure, Sphere
 import matplotlib.pyplot as plt
-from neuroml import Morphology, Segment, Point3DWithDiam as P
-from pyNN.morphology import (
-    NeuroMLMorphology,
-    NeuriteDistribution,
-    Morphology as Morph,
-    IonChannelDistribution,
-)
 from pyNN.neuron.morphology import (
     uniform,
-    random_section,
-    random_placement,
-    at_distances,
-    apical_dendrites,
-    dendrites,
     centre,
 )
 from pyNN.parameters import IonicSpecies
-from pyNN.standardmodels import StandardIonChannelModel, build_translations
-from pyNN.neuron import NativeCellType
-import shutil
-import os
-from neuron import h, hclass
-from pyNN.utility.build import compile_nmodl
-from pyNN.standardmodels.cells import MultiCompartmentNeuron as mc
-import platform
 import src.Classes as Classes
 import src.functions as funçoes
 
