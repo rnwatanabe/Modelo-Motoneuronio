@@ -14,6 +14,7 @@
 : - Rate constants: https://nrn.readthedocs.io/en/8.2.6/guide/faq.html#is-there-a-list-of-functions-that-are-built-into-nmodl
 
 NEURON {
+    SUFFIX motoneuron
     : Sodium ion channel
     : READ ena: reads the sodium reversal potential from the extracellular space
     : WRITE ina: writes the computed sodium current back to the extracellular space
