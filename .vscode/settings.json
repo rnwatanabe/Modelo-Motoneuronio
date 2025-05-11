@@ -5,13 +5,15 @@
         "PYTHONPATH": "${workspaceFolder}"
     },
     "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder};C:/nrn/lib/python"
     },
-    "python.analysis.extraPaths": [ 
-        "${workspaceFolder}"
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}",
+        "C:/nrn/lib/python"
     ],
     "python.autoComplete.extraPaths": [
-        "${workspaceFolder}"
+        "${workspaceFolder}",
+        "C:/nrn/lib/python"
     ]
 }
 
