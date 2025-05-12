@@ -48,9 +48,14 @@ uv sync
 
 Configure the `PYTHONPATH` environment variable for your IDE:
 
-    | IDE    | Configuration                                               |
-    |--------|-------------------------------------------------------------|
-    | VSCode | PYTHONPATH environment variable preset automatically        |
-    | Others | Set PYTHONPATH to: `C:\nrn\lib\python`                      |
+| IDE    | Configuration                                               |
+|--------|-------------------------------------------------------------|
+| VSCode | PYTHONPATH environment variable preset automatically        |
+| Others | Set PYTHONPATH to: `C:\nrn\lib\python`                      |
 
+## 📝 Run Marimo Notebooks
+
+```bash
+uv run marimo edit Notebooks/marimo_notebooks/NOTEBOOK_NAME.py
+```
 
