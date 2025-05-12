@@ -13,6 +13,10 @@ import src.Classes as Classes
 import src.functions as funçoes
 
 
+# set backend to QtAgg
+plt.switch_backend("QtAgg")
+
+
 def create_motor_neuron_pool(n_neurons):
     """Create a pool of motor neurons with specified parameters"""
     somas = funçoes.create_somas(n_neurons)
@@ -46,7 +50,7 @@ def create_motor_neuron_pool(n_neurons):
     return cell_type
 
 
-def run_simulation(current_matrix, neurons_per_pool=100):
+def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, noise_mean__nA=30, noise_stdev__nA=30):
     """
     Run simulation with custom current inputs
 
@@ -57,6 +61,12 @@ def run_simulation(current_matrix, neurons_per_pool=100):
         Each row represents the current for one pool
     neurons_per_pool : int
         Number of neurons in each pool
+    timestep__ms : float
+        Simulation timestep in ms
+    noise_mean__nA : float
+        Mean of the noise current in nA
+    noise_stdev__nA : float
+        Standard deviation of the noise current in nA
     """
     # Validate input
     if not isinstance(current_matrix, np.ndarray):
@@ -65,9 +75,7 @@ def run_simulation(current_matrix, neurons_per_pool=100):
         raise ValueError("current_matrix must be 2-dimensional")
 
     # Setup simulation with proper parameters
-    timestep = 0.05  # ms
-    min_delay = 0.1  # ms
-    sim.setup(timestep=timestep, min_delay=min_delay)
+    sim.setup(timestep=timestep)
 
     try:
         # Create motor neuron pools
@@ -94,6 +102,18 @@ def run_simulation(current_matrix, neurons_per_pool=100):
                 current_source = sim.StepCurrentSource(times=times, amplitudes=current)
             # Inject the current into all neurons in the pool
             current_source.inject_into(pool, location="soma")
+
+            # add noise to each individual neuron
+            for j in range(len(pool)):
+                # Add Gaussian noise current to each neuron
+                noise_source = sim.NoisyCurrentSource(
+                    mean=noise_mean,
+                    stdev=noise_stdev,
+                    start=0.0,
+                    stop=len(current) * timestep,
+                    dt=timestep
+                )
+                noise_source.inject_into([pool[j]], location="soma")
 
         # Set up recording
         for pool in pools:
@@ -126,13 +146,15 @@ def run_simulation(current_matrix, neurons_per_pool=100):
             # Raster plot for all spikes
             ax_spk = axes[i, 1]
             for j, st in enumerate(spikes):
-                ax_spk.vlines(st, j + 0.5, j + 1.5)
+                ax_spk.scatter(st, np.ones(len(st)) * j, s=1)
+
+            # set limits
+            ax_spk.set_xlim(0, len(current_matrix[0]) * timestep)
             ax_spk.set_title(f"Pool {i + 1} Spikes (Raster)")
             ax_spk.set_xlabel("Time (ms)")
             ax_spk.set_ylabel("Neuron")
         plt.tight_layout()
         plt.savefig("multi_pool_results_readable.png")
-        plt.show()
         return pools
 
     finally:
@@ -148,35 +170,52 @@ def plot_input_currents(current_matrix, timestep):
     if n_pools == 1:
         axes = [axes]
     for i, current in enumerate(current_matrix):
-        axes[i].plot(t, current)
+        axes[i].plot(t, current, "o")
         axes[i].set_title(f"Pool {i + 1} Input Current")
         axes[i].set_xlabel("Time (ms)")
         axes[i].set_ylabel("Current (nA)")
     plt.tight_layout()
     plt.savefig("input_currents.png")
-    plt.show()
 
 
 if __name__ == "__main__":
     # Get number of neurons per pool from command line argument
-    neurons_per_pool = 1000
+    neurons_per_pool = 100
+    n_pools = 5
+    
+    # Simulation parameters
+    timestep = 0.05  # ms
+    simulation_time = 500  # Total simulation time in ms
+
+    noise_mean = 50  # Mean noise current (nA)
+    noise_stdev = 50  # Standard deviation of noise (nA)
+
 
     # Example usage
-    n_pools = 5  # number of motor neuron pools
-    t_points = 10000  # number of time points (1000 ms / 0.05 ms = 20000)
-    timestep = 0.05  # ms
-    t = np.arange(0, t_points * timestep, timestep)
+    t_points = int(simulation_time / timestep)  # number of time points
+    t = np.arange(0, simulation_time, timestep)
+
     current_matrix = np.zeros((n_pools, t_points))
     for i in range(n_pools):
         amplitude = np.random.uniform(
             100, 200
-        )  # Random amplitude between 100 and 200 nA
+        )
         frequency = np.random.uniform(1, 10)  # Random frequency between 1 and 10 Hz
         phase = np.random.uniform(0, 2 * np.pi)  # Random phase
+
         current_matrix[i] = (
             amplitude * np.sin(2 * np.pi * frequency * t / 1000 + phase) + 100
         )  # Convert t to seconds
+
     # Run simulation
-    pools = run_simulation(current_matrix, neurons_per_pool=neurons_per_pool)
+    pools = run_simulation(
+        current_matrix, 
+        neurons_per_pool=neurons_per_pool,
+        timestep__ms=timestep,
+        noise_mean__nA=noise_mean,
+        noise_stdev__nA=noise_stdev
+    )
+
     # Plot and save input currents
     plot_input_currents(current_matrix, timestep)
+    plt.show()
