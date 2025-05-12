@@ -4,13 +4,11 @@ sys.path.append("./../")
 import pyNN.neuron as sim
 import numpy as np
 import matplotlib.pyplot as plt
-from pyNN.neuron.morphology import (
-    uniform,
-    centre,
-)
+from matplotlib.colors import Normalize
+from pyNN.neuron.morphology import uniform, centre
 from pyNN.parameters import IonicSpecies
 import src.Classes as Classes
-import src.functions as funçoes
+from src import functions
 
 
 # set backend to QtAgg
@@ -19,11 +17,11 @@ plt.switch_backend("QtAgg")
 
 def create_motor_neuron_pool(n_neurons):
     """Create a pool of motor neurons with specified parameters"""
-    somas = funçoes.create_somas(n_neurons)
-    dends = funçoes.create_dends(n_neurons, somas)
+    somas = functions.create_somas(n_neurons)
+    dends = functions.create_dends(n_neurons, somas)
 
     cell_type = Classes.cell_class(
-        morphology=funçoes.soma_dend(somas, dends),
+        morphology=functions.soma_dend(somas, dends),
         cm=1,  # mF / cm**2
         Ra=0.070,  # ohm.mm
         ionic_species={
@@ -50,7 +48,13 @@ def create_motor_neuron_pool(n_neurons):
     return cell_type
 
 
-def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, noise_mean__nA=30, noise_stdev__nA=30):
+def run_simulation(
+    current_matrix,
+    neurons_per_pool=100,
+    timestep__ms=0.05,
+    noise_mean__nA=30,
+    noise_stdev__nA=30,
+):
     """
     Run simulation with custom current inputs
 
@@ -75,7 +79,7 @@ def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, nois
         raise ValueError("current_matrix must be 2-dimensional")
 
     # Setup simulation with proper parameters
-    sim.setup(timestep=timestep)
+    sim.setup(timestep=timestep__ms)
 
     try:
         # Create motor neuron pools
@@ -98,7 +102,7 @@ def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, nois
                 current_source = sim.DCSource(amplitude=current[0])
             else:  # If current is varying
                 # Create a time-varying current source
-                times = np.arange(0, len(current) * timestep, timestep)
+                times = np.arange(0, len(current) * timestep__ms, timestep__ms)
                 current_source = sim.StepCurrentSource(times=times, amplitudes=current)
             # Inject the current into all neurons in the pool
             current_source.inject_into(pool, location="soma")
@@ -107,11 +111,11 @@ def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, nois
             for j in range(len(pool)):
                 # Add Gaussian noise current to each neuron
                 noise_source = sim.NoisyCurrentSource(
-                    mean=noise_mean,
-                    stdev=noise_stdev,
+                    mean=noise_mean__nA,
+                    stdev=noise_stdev__nA,
                     start=0.0,
-                    stop=len(current) * timestep,
-                    dt=timestep
+                    stop=len(current) * timestep__ms,
+                    dt=timestep__ms,
                 )
                 noise_source.inject_into([pool[j]], location="soma")
 
@@ -125,12 +129,12 @@ def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, nois
             pool[0:2].record(("ks.p"), locations="soma")
 
         # Run simulation
-        sim.run(len(current_matrix[0]) * timestep)
+        sim.run(len(current_matrix[0]) * timestep__ms)
 
         # Improved visualization
         n_pools = len(pools)
-        time_points = np.arange(0, len(current_matrix[0]) * timestep, timestep)
-        fig, axes = plt.subplots(n_pools, 2, figsize=(14, 4 * n_pools))
+        time_points = np.arange(0, len(current_matrix[0]) * timestep__ms, timestep__ms)
+        fig, axes = plt.subplots(n_pools, 2, figsize=(14, 4 * n_pools), sharex="row")
         if n_pools == 1:
             axes = np.array([axes])
         for i, pool in enumerate(pools):
@@ -145,14 +149,43 @@ def run_simulation(current_matrix, neurons_per_pool=100, timestep__ms=0.05, nois
             ax_vm.set_ylabel("mV")
             # Raster plot for all spikes
             ax_spk = axes[i, 1]
+
+            cmap = plt.cm.turbo
+            num_neurons = len(spikes)
+
+            # Calculate the number of spikes for each neuron
+            spike_counts = [len(st) for st in spikes]
+
+            # Get min and max spike counts for this specific pool
+            if spike_counts:
+                pool_min = min(spike_counts)
+                pool_max = max(spike_counts)
+            else:
+                pool_min = 0
+                pool_max = 1  # Avoid division by zero if no spikes
+
+            # Create a normalization based on spike counts
+            norm = Normalize(vmin=pool_min, vmax=pool_max)
+
             for j, st in enumerate(spikes):
-                ax_spk.scatter(st, np.ones(len(st)) * j, s=1)
+                # Assign color based on number of spikes
+                spike_count = len(st)
+                color = cmap(
+                    norm(spike_count)
+                )  # Apply colormap to normalized spike count
+                ax_spk.scatter(st, np.ones(len(st)) * j, s=1, color=color)
 
             # set limits
-            ax_spk.set_xlim(0, len(current_matrix[0]) * timestep)
+            ax_spk.set_xlim(0, len(current_matrix[0]) * timestep__ms)
             ax_spk.set_title(f"Pool {i + 1} Spikes (Raster)")
             ax_spk.set_xlabel("Time (ms)")
             ax_spk.set_ylabel("Neuron")
+
+            # Add a colorbar to show the mapping between colors and spike counts
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            # cbar = plt.colorbar(sm, ax=ax_spk)
+            # cbar.set_label(f'Pool {i + 1} Number of Spikes ({pool_min}-{pool_max})')
         plt.tight_layout()
         plt.savefig("multi_pool_results_readable.png")
         return pools
@@ -166,7 +199,7 @@ def plot_input_currents(current_matrix, timestep):
     n_pools = len(current_matrix)
     t_points = len(current_matrix[0])
     t = np.arange(0, t_points * timestep, timestep)
-    fig, axes = plt.subplots(n_pools, 1, figsize=(10, 2 * n_pools))
+    fig, axes = plt.subplots(n_pools, 1, figsize=(10, 2 * n_pools), sharex=True)
     if n_pools == 1:
         axes = [axes]
     for i, current in enumerate(current_matrix):
@@ -181,15 +214,14 @@ def plot_input_currents(current_matrix, timestep):
 if __name__ == "__main__":
     # Get number of neurons per pool from command line argument
     neurons_per_pool = 100
-    n_pools = 5
-    
+    n_pools = 3
+
     # Simulation parameters
     timestep = 0.05  # ms
-    simulation_time = 500  # Total simulation time in ms
+    simulation_time = 1000  # Total simulation time in ms
 
     noise_mean = 50  # Mean noise current (nA)
     noise_stdev = 50  # Standard deviation of noise (nA)
-
 
     # Example usage
     t_points = int(simulation_time / timestep)  # number of time points
@@ -197,9 +229,7 @@ if __name__ == "__main__":
 
     current_matrix = np.zeros((n_pools, t_points))
     for i in range(n_pools):
-        amplitude = np.random.uniform(
-            100, 200
-        )
+        amplitude = np.random.uniform(100, 200)
         frequency = np.random.uniform(1, 10)  # Random frequency between 1 and 10 Hz
         phase = np.random.uniform(0, 2 * np.pi)  # Random phase
 
@@ -209,11 +239,11 @@ if __name__ == "__main__":
 
     # Run simulation
     pools = run_simulation(
-        current_matrix, 
+        current_matrix,
         neurons_per_pool=neurons_per_pool,
         timestep__ms=timestep,
         noise_mean__nA=noise_mean,
-        noise_stdev__nA=noise_stdev
+        noise_stdev__nA=noise_stdev,
     )
 
     # Plot and save input currents
