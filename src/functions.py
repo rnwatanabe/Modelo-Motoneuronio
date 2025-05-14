@@ -50,12 +50,12 @@ def create_somas(n: int) -> list[Segment]:
     return [
         Segment(
             proximal=P(
-                x=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
-                y=(y_start - i * y_step)*(1+0.01*noise_y[i]),
+                x=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
+                y=y_start*np.exp(i/(n-1)*np.log(18/y_start))*(1+noise_y[i]),
                 z=0,
-                diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
+                diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
             ),
-            distal=P(x=0, y=0, z=0, diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i])),
+            distal=P(x=0, y=0, z=0, diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i])),
             name="soma",
             id=0,
         )
@@ -103,15 +103,15 @@ def create_dends(n: int, somas: list[Segment]) -> list[Segment]:
         Segment(
             proximal=P(
                 x=0,
-                y=(y_start - i * y_step)*(1+noise_y[i]),
+                y=y_start*np.exp(i/(n-1)*np.log(18/y_start))*(1+noise_y[i]),
                 z=0,
-                diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
+                diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
             ),
             distal=P(
-                x=(x_distal_start + i * x_distal_step)*(1+noise_x[i]),
-                y=(y_start - i * y_step)*(1+noise_y[i]),
+                x=x_distal_start*np.exp(i/(n-1)*np.log(-6789/x_distal_start))*(1+noise_x[i]),
+                y=y_start*np.exp(i/(n-1)*np.log(18/y_start))*(1+noise_y[i]),
                 z=0,
-                diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
+                diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
             ),
             name="dendrite",
             parent=somas[i],
