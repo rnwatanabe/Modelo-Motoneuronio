@@ -3,6 +3,22 @@ import pyNN.neuron as sim
 from neuroml import Morphology, Segment, Point3DWithDiam as P
 from pyNN.morphology import NeuroMLMorphology
 from scipy import signal
+import os
+import shutil
+from neuron import h, nrn, hclass
+from pyNN.utility.build import compile_nmodl
+
+
+def update_mod_files():
+    files = os.listdir('src/')
+    
+    for filename in files:
+        if filename.endswith('.mod'):
+            shutil.copyfile(f'src/{filename}',f'.venv/lib/python3.12/site-packages/pyNN/neuron/nmodl/{filename}')
+
+    compile_nmodl('.venv/lib/python3.12/site-packages/pyNN/neuron/nmodl')
+    h.nrn_load_dll('.venv/lib/python3.12/site-packages/pyNN/neuron/nmodl/motoneuron.o')
+    
 
 
 def create_somas(n: int) -> list[Segment]:
@@ -28,16 +44,18 @@ def create_somas(n: int) -> list[Segment]:
     diameter_min, diameter_max = 77.5, 82.5
     diameter_step = (diameter_max - diameter_min) / n
     y_start, y_step = 18, 18 / n
-
+    rng = np.random.default_rng()
+    noise_diameter = 0.01*rng.normal(size=n)
+    noise_y = 0.01*rng.normal(size=n)
     return [
         Segment(
             proximal=P(
-                x=diameter_min + i * diameter_step,
-                y=y_start - i * y_step,
+                x=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
+                y=(y_start - i * y_step)*(1+0.01*noise_y[i]),
                 z=0,
-                diameter=diameter_min + i * diameter_step,
+                diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
             ),
-            distal=P(x=0, y=0, z=0, diameter=diameter_min + i * diameter_step),
+            distal=P(x=0, y=0, z=0, diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i])),
             name="soma",
             id=0,
         )
@@ -77,20 +95,23 @@ def create_dends(n: int, somas: list[Segment]) -> list[Segment]:
     diameter_step = (diameter_max - diameter_min) / n
     y_start, y_step = 18, 18 / n
     x_distal_start, x_distal_step = -5500, (-6789 + 5500) / n
-
+    rng = np.random.default_rng()
+    noise_diameter = 0.01*rng.normal(size=n)
+    noise_y = 0.01*rng.normal(size=n)
+    noise_x = 0.01*rng.normal(size=n)
     return [
         Segment(
             proximal=P(
                 x=0,
-                y=y_start - i * y_step,
+                y=(y_start - i * y_step)*(1+noise_y[i]),
                 z=0,
-                diameter=diameter_min + i * diameter_step,
+                diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
             ),
             distal=P(
-                x=x_distal_start + i * x_distal_step,
-                y=y_start - i * y_step,
+                x=(x_distal_start + i * x_distal_step)*(1+noise_x[i]),
+                y=(y_start - i * y_step)*(1+noise_y[i]),
                 z=0,
-                diameter=diameter_min + i * diameter_step,
+                diameter=(diameter_min + i * diameter_step)*(1+noise_diameter[i]),
             ),
             name="dendrite",
             parent=somas[i],
@@ -290,10 +311,10 @@ def neuromuscular_system(cells, n, h, Umax=1000):
             sec=cells.all_cells[i]._cell.sections[0],
         )
 
-        force_objects[i].Fmax = 0.03 + (3 - 0.03) * i / n
-        force_objects[i].Tc = 140 + (96 - 140) * i / n
-        force_objects[i].Umax = Umax
-        neuromuscular_junctions[i].delay = 0.86 / (44 + 9 / n * i) * 1000
+        force_objects[i].Fmax = 0.03*np.exp(i/99*np.log(3/0.03))
+        force_objects[i].Tc = 140*np.exp(i/99*np.log(96/140))
+        force_objects[i].Umax =  Umax
+        neuromuscular_junctions[i].delay = 0.86/(44*np.exp(i/99*np.log(53/44)))*1000
 
     return muscle_units, force_objects, neuromuscular_junctions
 

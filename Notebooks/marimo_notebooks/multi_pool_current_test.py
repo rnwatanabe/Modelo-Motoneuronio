@@ -17,9 +17,10 @@ plt.switch_backend("QtAgg")
 
 def create_motor_neuron_pool(n_neurons):
     """Create a pool of motor neurons with specified parameters"""
+    rng = np.random.default_rng()
     somas = functions.create_somas(n_neurons)
     dends = functions.create_dends(n_neurons, somas)
-
+    vt = -70 + 12.35*np.exp(np.arange(n_neurons)/(n_neurons-1)*np.log(20.9/12.35))*(1+0.05*rng.normal(size=n_neurons))
     cell_type = Classes.cell_class(
         morphology=functions.soma_dend(somas, dends),
         cm=1,  # mF / cm**2
@@ -33,15 +34,15 @@ def create_motor_neuron_pool(n_neurons):
         pas_dend={"conductance_density": uniform("dendrite", 7e-4), "e_rev": -70},
         na={
             "conductance_density": uniform("soma", 10),
-            "vt": list(np.linspace(-57.65, -53, n_neurons)),
+            "vt": list(vt),
         },
         kf={
             "conductance_density": uniform("soma", 1),
-            "vt": list(np.linspace(-57.65, -53, n_neurons)),
+            "vt": list(vt),
         },
         ks={
             "conductance_density": uniform("soma", 0.5),
-            "vt": list(np.linspace(-57.65, -53, n_neurons)),
+            "vt": list(vt),
         },
         syn={"locations": centre("dendrite"), "e_syn": 0, "tau_syn": 0.6},
     )
@@ -72,6 +73,8 @@ def run_simulation(
     noise_stdev__nA : float
         Standard deviation of the noise current in nA
     """
+
+    functions.update_mod_files()
     # Validate input
     if not isinstance(current_matrix, np.ndarray):
         raise TypeError("current_matrix must be a numpy array")
