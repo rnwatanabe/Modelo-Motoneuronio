@@ -119,9 +119,9 @@ DERIVATIVE states {
     : Na+ activation gate
     m' = alpha_m*(1-m) - beta_m*m
     : Na+ inactivation gate
-    h' = alpha_h*(1-h) - beta_h*h
+    h' = 0.1*alpha_h*(1-h) - 0.1*beta_h*h
     : Fast K+ gate
-    n' = alpha_n*(1-n) - beta_n*n
+    n' = 0.1*alpha_n*(1-n) - 0.1*beta_n*n
     : Slow K+ gate
     p' = (pinf - p) / ptau
 }
