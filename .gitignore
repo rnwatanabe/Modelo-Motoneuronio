@@ -218,4 +218,7 @@ pip-selfcheck.json
 .history
 .ionide
 
+# Ignore data folder (do not track experimental or raw data)
+data/
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,jupyternotebooks,venv

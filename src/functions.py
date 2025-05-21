@@ -2,7 +2,7 @@ import numpy as np
 import pyNN.neuron as sim
 from neuroml import Morphology, Segment, Point3DWithDiam as P
 from pyNN.morphology import NeuroMLMorphology
-from scipy import signal
+from pyNN.neuron.morphology import uniform
 import os
 import shutil
 from neuron import h, nrn, hclass
@@ -18,10 +18,9 @@ def update_mod_files():
 
     compile_nmodl('.venv/lib/python3.12/site-packages/pyNN/neuron/nmodl')
     h.nrn_load_dll('.venv/lib/python3.12/site-packages/pyNN/neuron/nmodl/motoneuron.o')
-    
 
 
-def create_somas(n: int) -> list[Segment]:
+def create_cond(n: int, gmin: float, gmax: float, compartment: str, seed: int=1, CV: float=0.01) -> list[Segment]:
     """
     Creates a list of somas for a given number of neurons.
 
@@ -41,17 +40,50 @@ def create_somas(n: int) -> list[Segment]:
     somas : list[Segment]
         A list of somas.
     """
-    diameter_min, diameter_max = 77.5, 82.5
-    diameter_step = (diameter_max - diameter_min) / n
-    y_start, y_step = 18, 18 / n
-    rng = np.random.default_rng()
-    noise_diameter = 0.01*rng.normal(size=n)
-    noise_y = 0.01*rng.normal(size=n)
+    
+
+    rng = np.random.default_rng(seed=seed)
+    noise_g = CV*rng.normal(size=n)
+    
+    return [
+        uniform(compartment, gmin*np.exp(i/(n-1)*np.log(gmax/gmin))*(1+noise_g[i]))
+        for i in range(n)
+        ]
+
+
+
+def create_somas(n: int, diameter_min: float, diameter_max: float, y_min: float, y_max: float, seed: int=1, CV: float=0.01) -> list[Segment]:
+    """
+    Creates a list of somas for a given number of neurons.
+
+    The somas are created with a diameter that increases linearly from 77.5 to 82.5 µm.
+    The linear increment of the diameter is (82.5 - 77.5) / n µm.
+
+    The y coordinate of the soma is 18 µm.
+    The linear increment of the y coordinate is 18 / n µm.
+
+    Parameters
+    ----------
+    n : int
+        The number of neurons.
+
+    Returns
+    -------
+    somas : list[Segment]
+        A list of somas.
+    """
+    # diameter_min, diameter_max = 77.5, 82.5
+    
+    # y_start, y_step = 18, 18 / n
+    rng = np.random.default_rng(seed=seed)
+    noise_y = CV*rng.normal(size=n)
+    noise_diameter = CV*rng.normal(size=n)
+    
     return [
         Segment(
             proximal=P(
                 x=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
-                y=y_start*np.exp(i/(n-1)*np.log(18/y_start))*(1+noise_y[i]),
+                y=y_min*np.exp(i/(n-1)*np.log(y_max/y_min))*(1+noise_y[i]),
                 z=0,
                 diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
             ),
@@ -63,7 +95,7 @@ def create_somas(n: int) -> list[Segment]:
     ]
 
 
-def create_dends(n: int, somas: list[Segment]) -> list[Segment]:
+def create_dends(n: int, somas: list[Segment], diameter_min: float, diameter_max: float, y_min: float, y_max: float, x_min: float, x_max: float, seed: int=1, CV: float=0.01) -> list[Segment]:
     """
     Creates a list of dendrites for a given number of neurons.
 
@@ -91,25 +123,24 @@ def create_dends(n: int, somas: list[Segment]) -> list[Segment]:
     dends : list[Segment]
         The list of dendrites.
     """
-    diameter_min, diameter_max = 41.5, 62.5
-    diameter_step = (diameter_max - diameter_min) / n
-    y_start, y_step = 18, 18 / n
-    x_distal_start, x_distal_step = -5500, (-6789 + 5500) / n
-    rng = np.random.default_rng()
-    noise_diameter = 0.01*rng.normal(size=n)
-    noise_y = 0.01*rng.normal(size=n)
-    noise_x = 0.01*rng.normal(size=n)
+    # diameter_min, diameter_max = 41.5, 62.5
+    # y_start, y_step = 18, 18 / n
+    # x_distal_start, x_distal_step = -5500, (-6789 + 5500) / n
+    rng = np.random.default_rng(seed=seed)
+    noise_y = CV*rng.normal(size=n)
+    noise_diameter = CV*rng.normal(size=n)    
+    noise_x = CV*rng.normal(size=n)
     return [
         Segment(
             proximal=P(
                 x=0,
-                y=y_start*np.exp(i/(n-1)*np.log(18/y_start))*(1+noise_y[i]),
+                y=y_min*np.exp(i/(n-1)*np.log(y_max/y_min))*(1+noise_y[i]),
                 z=0,
                 diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
             ),
             distal=P(
-                x=x_distal_start*np.exp(i/(n-1)*np.log(-6789/x_distal_start))*(1+noise_x[i]),
-                y=y_start*np.exp(i/(n-1)*np.log(18/y_start))*(1+noise_y[i]),
+                x=x_min*np.exp(i/(n-1)*np.log(x_max/x_min))*(1+noise_x[i]),
+                y=y_min*np.exp(i/(n-1)*np.log(y_max/y_min))*(1+noise_y[i]),
                 z=0,
                 diameter=diameter_min*np.exp(i/(n-1)*np.log(diameter_max/diameter_min))*(1+noise_diameter[i]),
             ),
@@ -273,7 +304,7 @@ def plot_disparos_neuronios(
 # return muscle_units, force_objects, neuromuscular_junctions
 
 
-def neuromuscular_system(cells, n, h, Umax=1000):
+def neuromuscular_system(cells, n, h, Umax=2000, seed=1, Fmin=0.03, Fmax=3, Tcmin=140, Tcmax=96, vel_min=44, vel_max=53, CV=0.01):
     """
     Creates a neuromuscular system.
 
@@ -297,7 +328,7 @@ def neuromuscular_system(cells, n, h, Umax=1000):
     neuromuscular_junctions : dict
         The dictionary of neuromuscular junctions.
     """
-
+    rng = np.random.default_rng(seed)
     muscle_units = dict()
     force_objects = dict()
     neuromuscular_junctions = dict()
@@ -311,15 +342,15 @@ def neuromuscular_system(cells, n, h, Umax=1000):
             sec=cells.all_cells[i]._cell.sections[0],
         )
 
-        force_objects[i].Fmax = 0.03*np.exp(i/99*np.log(3/0.03))
-        force_objects[i].Tc = 140*np.exp(i/99*np.log(96/140))
-        force_objects[i].Umax =  Umax
-        neuromuscular_junctions[i].delay = 0.86/(44*np.exp(i/99*np.log(53/44)))*1000
+        force_objects[i].Fmax = Fmin*np.exp(i/(n-1)*np.log(Fmax/Fmin))*(1 + CV*rng.normal())
+        force_objects[i].Tc = Tcmin*np.exp(i/(n-1)*np.log(Tcmax/Tcmin))*(1 + CV*rng.normal())
+        force_objects[i].Umax =  Umax*(1 + CV*rng.normal())
+        neuromuscular_junctions[i].delay = 0.86/(vel_min*np.exp(i/(n-1)*np.log(vel_max/vel_min)))*1000*(1 + CV*rng.normal())
 
     return muscle_units, force_objects, neuromuscular_junctions
 
 
-def soma_força(force_objects: dict, h: object, f: list[float]) -> object:
+def sum_force(force_objects: dict, h: object, f: list[float]) -> object:
     """
     Sums the forces of the muscle units.
 

@@ -246,34 +246,43 @@ class SetRate(object):
 
 class SetRateIntControl(object):
     """
-    A callback which changes the firing rate of a population of poisson
-    processes at a fixed interval, based on the forces of the muscle units.
-    """
+Um callback que altera a taxa de disparo de uma população de processos
+Poisson em intervalos fixos, com base nas forças das unidades motoras.
+"""
 
-    def __init__(
-        self, population_source, population_neuron, force_objects, interval=20.0, ref=0
-    ):
+    def __init__(self, population_source, population_neuron, force_objects, interval=20.0, ref=0, feedforward=0, strength = 1, Kp=0.001, Ki=0.00001, delay=60):
         self.population_source = population_source
         self.population_neuron = population_neuron
-        self.force_objects = force_objects
+        self.force_objects = force_objects  
         self.interval = interval
         self.ref = ref
+        self.feedforward = feedforward
+        self.strength = strength
+        self.Kp = Kp
+        self.Ki = Ki
         self.Fint = 0
-        self.F20 = 0
-        self.F40 = 0
-        self.F60 = 0
-        self.F80 = 0
-        print(f"valor: {self.ref}")
+        self.F = dict()
+        self.F[20] = 0
+        self.F[40] = 0
+        self.F[60] = 0
+        self.F[80] = 0
+        self.F[100] = 0
+        self.delay = delay
+        
+        print(f'valor: {self.ref}')
 
     def __call__(self, t):
         total_force = sum(force.F for force in self.force_objects.values())
-        erro = self.ref - self.F80
-        self.Fint = self.Fint + erro * self.interval
-        rate = 10 + (erro * 0.01 + 0.0003 * self.Fint)
-        self.population_source.set(beta=rate)
-        self.F20 = total_force
-        self.F40 = self.F20
-        self.F60 = self.F40
-        self.F80 = self.F60
+        erro = (self.ref - self.F[self.delay])
+        self.Fint =  self.Fint + erro*self.interval
+        rate = self.feedforward + self.strength*(erro*self.Kp + self.Ki*self.Fint)
+        self.population_source.set(beta=rate+0.001)
+        self.F[20] = total_force
+        self.F[40] = self.F[20]
+        self.F[60] = self.F[40]
+        self.F[80] = self.F[60]
+        self.F[100] = self.F[80]
+        
+        
 
         return t + self.interval
