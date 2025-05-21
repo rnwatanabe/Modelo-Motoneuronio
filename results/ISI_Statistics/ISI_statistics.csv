@@ -1,0 +1,4 @@
+Subject,Muscle,Force_Level,Plateau,MU,ISI_Mean_ms,ISI_SD_ms,ISI_CV,Firing_Rate_Hz,Num_Spikes
+P01,VL,5,1,1,120.5,15.2,0.126,8.3,42
+P01,VL,5,1,2,135.2,18.7,0.138,7.4,38
+...

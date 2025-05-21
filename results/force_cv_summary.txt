@@ -1,0 +1,10 @@
+Force CV Summary
+===============
+
+This file contains the coefficient of variation (CV) of force for each plateau.
+
+Format: Subject_Muscle_ForceLevel_Plateau: CV (Mean ± SD)
+
+P01_VL_05_1: 0.023 (5.2 ± 0.12 N)
+P01_VL_05_2: 0.019 (5.1 ± 0.10 N)
+...

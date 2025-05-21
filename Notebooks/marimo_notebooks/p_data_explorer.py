@@ -10,7 +10,7 @@ import os
 import csv
 
 # set backend to QtAgg (interactive GUI backend)
-plt.switch_backend("QtAgg")
+plt.switch_backend("Agg")
 
 # Constants from README
 FSAMP = 10240  # Sampling frequency for all datasets
@@ -170,6 +170,45 @@ def calculate_instantaneous_rate(pulses, window_size=1000):
     else:
         return np.array([]), np.array([])
 
+def calculate_force_cv(data, plateau_start, plateau_stop):
+    """
+    Calculate the coefficient of variation (CV) of force during a plateau phase
+
+    Parameters:
+    -----------
+    data : dict
+        Dictionary containing the data loaded from a .mat file
+    plateau_start : int
+        Start index of the plateau phase
+    plateau_stop : int
+        Stop index of the plateau phase
+
+    Returns:
+    --------
+    cv : float
+        Coefficient of variation of force during the plateau phase
+    mean_force : float
+        Mean force during the plateau phase
+    std_force : float
+        Standard deviation of force during the plateau phase
+    """
+    # Check if reference signal (force) exists
+    if 'ref_signal' not in data:
+        return None, None, None
+
+    # Get the reference signal (force)
+    ref_signal = data['ref_signal'].flatten()
+
+    # Extract the plateau portion
+    plateau_force = ref_signal[plateau_start:plateau_stop]
+
+    # Calculate statistics
+    mean_force = np.mean(plateau_force)
+    std_force = np.std(plateau_force)
+    cv = std_force / mean_force if mean_force > 0 else 0
+
+    return cv, mean_force, std_force
+
 def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
     """
     Create a plot with CV on x-axis and firing rate on y-axis, with quadratic fit
@@ -200,6 +239,7 @@ def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
     all_cvs = []
     all_rates = []
     all_force_levels = []  # To color-code by force level
+    all_force_cvs = []     # To store force CV for each plateau
 
     # Process all files
     for file_path in muscle_files:
@@ -220,6 +260,13 @@ def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
             if 'MUPulses' not in data:
                 print(f"Warning: MUPulses not found in {file_path}")
                 continue
+
+            # Calculate force CV for this plateau
+            force_cv, mean_force, std_force = calculate_force_cv(data, plateau_start, plateau_stop)
+
+            # If force data is available, print information
+            if force_cv is not None:
+                print(f"  Force CV for {file_path.name} (plateau): CV={force_cv:.3f}, Mean={mean_force:.2f}N, SD={std_force:.2f}N")
 
             # Get the MUPulses data
             mu_pulses = data['MUPulses']
@@ -251,6 +298,7 @@ def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
                 all_cvs.append(cv)
                 all_rates.append(mean_rate)
                 all_force_levels.append(force_level)
+                all_force_cvs.append(force_cv if force_cv is not None else 0)
 
                 print(f"  Added MU {i+1} from {file_path.name} (plateau): Rate={mean_rate:.2f}Hz, CV={cv:.3f}")
 
@@ -261,6 +309,7 @@ def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
     all_cvs = np.array(all_cvs)
     all_rates = np.array(all_rates)
     all_force_levels = np.array(all_force_levels)
+    all_force_cvs = np.array(all_force_cvs)
 
     # Create the CV vs Rate plot
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -284,6 +333,7 @@ def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
         level_indices = all_force_levels == level
         level_cvs = all_cvs[level_indices]
         level_rates = all_rates[level_indices]
+        level_force_cvs = all_force_cvs[level_indices]
 
         if len(level_cvs) > 2:  # Need at least 3 points for quadratic fit
             coeffs = np.polyfit(level_cvs, level_rates, 2)
@@ -325,10 +375,15 @@ def plot_cv_vs_rate_plateau(folder_path, muscle_type, ramp_defs):
         level_indices = all_force_levels == level
         level_cvs = all_cvs[level_indices]
         level_rates = all_rates[level_indices]
+        level_force_cvs = all_force_cvs[level_indices]
+
+        # Calculate mean force CV if available
+        mean_force_cv = np.mean(level_force_cvs[level_force_cvs > 0]) if np.any(level_force_cvs > 0) else 0
 
         stats_text += (f"{level}% MVC (n={len(level_cvs)}):\n"
                       f"Mean CV: {np.mean(level_cvs):.3f} ± {np.std(level_cvs):.3f}\n"
-                      f"Mean Rate: {np.mean(level_rates):.2f} ± {np.std(level_rates):.2f} Hz\n\n")
+                      f"Mean Rate: {np.mean(level_rates):.2f} ± {np.std(level_rates):.2f} Hz\n"
+                      f"Force CV: {mean_force_cv:.3f}\n\n")
 
     ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
             verticalalignment='bottom', horizontalalignment='right',
@@ -500,6 +555,110 @@ def plot_cv_vs_rate_whole_data(folder_path, muscle_type):
 
     return fig
 
+def plot_force_with_plateaus(data, ramp_defs, force_level, file_path, muscle_type):
+    """
+    Plot force signal with highlighted plateaus and CV information
+
+    Parameters:
+    -----------
+    data : dict
+        Dictionary containing the data loaded from a .mat file
+    ramp_defs : dict
+        Dictionary with force levels as keys and (start, stop) tuples as values
+    force_level : int
+        Force level (% MVC)
+    file_path : Path
+        Path to the .mat file
+    muscle_type : str
+        Muscle type (VL or VM)
+
+    Returns:
+    --------
+    fig : matplotlib.figure.Figure
+        The figure object
+    """
+    # Check if reference signal (force) exists
+    if 'ref_signal' not in data:
+        return None
+
+    # Get the reference signal (force)
+    ref_signal = data['ref_signal'].flatten()
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Plot force signal
+    time = np.arange(len(ref_signal)) / FSAMP
+    ax.plot(time, ref_signal, 'k-', linewidth=1.5, label='Force')
+
+    # Process each plateau
+    plateau_colors = ['g', 'b', 'r', 'c', 'm', 'y']
+
+    # Check if ramp_defs is a dictionary of dictionaries (multiple plateaus)
+    if isinstance(next(iter(ramp_defs.values())), dict):
+        # Multiple plateaus case
+        for plateau_idx, (start_idx, stop_idx) in ramp_defs[force_level].items():
+            color = plateau_colors[plateau_idx % len(plateau_colors)]
+            start_time = start_idx / FSAMP
+            stop_time = stop_idx / FSAMP
+
+            # Highlight plateau region
+            ax.axvspan(start_time, stop_time, alpha=0.2, color=color,
+                      label=f'Plateau {plateau_idx+1}' if plateau_idx == 0 else "")
+
+            # Calculate force CV for this plateau
+            plateau_signal = ref_signal[start_idx:stop_idx+1]
+            if len(plateau_signal) > 1:
+                mean = np.mean(plateau_signal)
+                std = np.std(plateau_signal)
+                cv = std / mean if mean != 0 else np.nan
+
+                # Add CV text directly on the plot
+                ax.text((start_time+stop_time)/2, np.max(ref_signal)*0.95,
+                        f'CV: {cv:.3f}', color=color, ha='center', va='top',
+                        fontweight='bold', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+
+            # Add vertical lines at plateau boundaries
+            ax.axvline(x=start_time, color=color, linestyle='--', alpha=0.7)
+            ax.axvline(x=stop_time, color=color, linestyle=':', alpha=0.7)
+    else:
+        # Single plateau case (old format)
+        plateau_start, plateau_stop = ramp_defs[force_level]
+        start_time = plateau_start / FSAMP
+        stop_time = plateau_stop / FSAMP
+
+        # Highlight plateau region
+        ax.axvspan(start_time, stop_time, alpha=0.2, color='green', label='Plateau')
+
+        # Calculate force CV for the plateau
+        force_cv, mean_force, std_force = calculate_force_cv(data, plateau_start, plateau_stop)
+
+        # Add CV information to the plot
+        if force_cv is not None:
+            # Add text with force CV information
+            cv_text = f"Plateau Force CV: {force_cv:.3f}\nMean: {mean_force:.2f}N\nSD: {std_force:.2f}N"
+            ax.text(0.02, 0.95, cv_text, transform=ax.transAxes,
+                    verticalalignment='top', horizontalalignment='left',
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+
+            # Also add CV directly on the plateau for consistency
+            ax.text((start_time+stop_time)/2, np.max(ref_signal)*0.95,
+                    f'CV: {force_cv:.3f}', color='green', ha='center', va='top',
+                    fontweight='bold', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+
+    # Set labels and title
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Force (N)')
+    ax.set_title(f'{file_path.stem} - {muscle_type} - {force_level}% MVC')
+
+    # Add grid and legend
+    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.legend(loc='upper right')
+
+    plt.tight_layout()
+
+    return fig
+
 def plot_combined_analysis():
     """
     Create a combined plot with data from all P folders, differentiating by muscle type
@@ -511,12 +670,17 @@ def plot_combined_analysis():
     combined_dir = Path("P_Combined_Analysis")
     combined_dir.mkdir(exist_ok=True)
 
+    # Create directory for force plots
+    force_plots_dir = combined_dir / "Force_Plots"
+    force_plots_dir.mkdir(exist_ok=True)
+
     # Lists to store data from all motor units
     all_cvs = []
     all_rates = []
     all_muscle_types = []  # To differentiate by muscle type
     all_force_levels = []  # To color-code by force level
     all_subjects = []      # To track which subject (P01 or P02)
+    all_force_cvs = []     # To store force CV for each plateau
 
     # Process P01_iEMG_Ramps
     p01_path = DATA_PATH / "P01_iEMG_Ramps"
@@ -548,6 +712,21 @@ def plot_combined_analysis():
                 data = sio.loadmat(file_path)
                 if 'MUPulses' not in data:
                     continue
+
+                # Calculate force CV for this plateau
+                force_cv, mean_force, std_force = calculate_force_cv(data, plateau_start, plateau_stop)
+
+                # If force data is available, print information and create force plot
+                if force_cv is not None:
+                    print(f"  Force CV for {file_path.name} (plateau): CV={force_cv:.3f}, Mean={mean_force:.2f}N, SD={std_force:.2f}N")
+
+                    # Create and save force plot
+                    force_fig = plot_force_with_plateaus(data, p01_ramp_defs, force_level, file_path, "VL")
+                    if force_fig:
+                        force_output_file = force_plots_dir / f"P01_VL_{force_level}_force_plateau.png"
+                        force_fig.savefig(force_output_file, dpi=300)
+                        plt.close(force_fig)
+                        print(f"  Saved force plot to {force_output_file}")
 
                 # Get the MUPulses data
                 mu_pulses = data['MUPulses']
@@ -581,6 +760,7 @@ def plot_combined_analysis():
                     all_muscle_types.append("VL")
                     all_force_levels.append(force_level)
                     all_subjects.append("P01")
+                    all_force_cvs.append(force_cv if force_cv is not None else 0)
 
                     print(f"    Added P01 VL MU {i+1} from {file_path.name} (plateau): Rate={mean_rate:.2f}Hz, CV={cv:.3f}")
             except Exception as e:
@@ -605,6 +785,21 @@ def plot_combined_analysis():
                 data = sio.loadmat(file_path)
                 if 'MUPulses' not in data:
                     continue
+
+                # Calculate force CV for this plateau
+                force_cv, mean_force, std_force = calculate_force_cv(data, plateau_start, plateau_stop)
+
+                # If force data is available, print information and create force plot
+                if force_cv is not None:
+                    print(f"  Force CV for {file_path.name} (plateau): CV={force_cv:.3f}, Mean={mean_force:.2f}N, SD={std_force:.2f}N")
+
+                    # Create and save force plot
+                    force_fig = plot_force_with_plateaus(data, p01_ramp_defs, force_level, file_path, "VM")
+                    if force_fig:
+                        force_output_file = force_plots_dir / f"P01_VM_{force_level}_force_plateau.png"
+                        force_fig.savefig(force_output_file, dpi=300)
+                        plt.close(force_fig)
+                        print(f"  Saved force plot to {force_output_file}")
 
                 # Get the MUPulses data
                 mu_pulses = data['MUPulses']
@@ -638,6 +833,7 @@ def plot_combined_analysis():
                     all_muscle_types.append("VM")
                     all_force_levels.append(force_level)
                     all_subjects.append("P01")
+                    all_force_cvs.append(force_cv if force_cv is not None else 0)
 
                     print(f"    Added P01 VM MU {i+1} from {file_path.name} (plateau): Rate={mean_rate:.2f}Hz, CV={cv:.3f}")
             except Exception as e:
@@ -978,13 +1174,13 @@ def plot_cv_vs_rate_by_force_level(all_cvs, all_rates, all_force_levels, all_mus
         level_muscle_types = all_muscle_types[mask]
 
         # Create scatter plot for this force level with different markers for different muscle types
-        for muscle_type in np.unique(level_muscle_types):
-            muscle_mask = level_muscle_types == muscle_type
+        for muscle in np.unique(level_muscle_types):
+            muscle_mask = level_muscle_types == muscle
             ax.scatter(level_cvs[muscle_mask], level_rates[muscle_mask],
                       c=[colors[i % len(colors)]] * np.sum(muscle_mask),
-                      marker='o' if muscle_type == 'VL' else '^',
+                      marker='o' if muscle == 'VL' else '^',
                       s=100, alpha=0.7, edgecolors='k',
-                      label=f'{level}% MVC - {muscle_type}')
+                      label=f'{level}% MVC - {muscle}')
 
         if len(level_cvs) > 2:  # Need at least 3 points for quadratic fit
             coeffs = np.polyfit(level_cvs, level_rates, 2)
@@ -1358,6 +1554,8 @@ def analyze_plateau_data():
                         all_muscle_types.append("VL")
                         all_force_levels.append(force_level)
                         all_subjects.append("P02")
+
+                        print(f"    Added P02 VL MU {i+1} from {file_path.name} (plateau): Rate={mean_rate:.2f}Hz, CV={cv:.3f}")
                 except Exception as e:
                     print(f"    Error processing {file_path}: {e}")
 
@@ -1413,6 +1611,8 @@ def analyze_plateau_data():
                         all_muscle_types.append("VM")
                         all_force_levels.append(force_level)
                         all_subjects.append("P02")
+
+                        print(f"    Added P02 VM MU {i+1} from {file_path.name} (plateau): Rate={mean_rate:.2f}Hz, CV={cv:.3f}")
                 except Exception as e:
                     print(f"    Error processing {file_path}: {e}")
 
@@ -1554,6 +1754,11 @@ def save_plateau_spikes_to_csv(folder_path, muscle_type, ramp_defs):
 
             print(f"Saved all plateau spikes to {output_file}")
 
+            # NOVO: Plota o sinal de força com CV dos plateaus e metadados
+            if 'ref_signal' in data:
+                ref_signal = data['ref_signal'].flatten()
+                plot_force_with_plateau_cv(file_path, ref_signal, ramp_defs[force_level], force_level, csv_dir, FSAMP, metadata)
+
         except Exception as e:
             print(f"Error processing {file_path}: {e}")
             import traceback
@@ -1561,157 +1766,73 @@ def save_plateau_spikes_to_csv(folder_path, muscle_type, ramp_defs):
 
     return None
 
-def plot_mu_spikes_with_force(folder_path, muscle_type, ramp_defs=None):
+def plot_force_with_plateau_cv(file_path, ref_signal, ramp_defs, force_level, output_dir, FSAMP=10240, metadata=None):
     """
-    Create a plot showing the instant spikes of all motor units along with the force signal.
+    Plot the force signal with highlighted plateaus, showing the CV of each plateau and including CSV metadata in the figure.
 
     Parameters:
     -----------
-    folder_path : Path
-        Path to the folder containing data files
-    muscle_type : str
-        Muscle type (VL or VM)
-    ramp_defs : dict, optional
-        Dictionary with force levels as keys and another dictionary as values.
-        The inner dictionary has plateau indices (0, 1, 2, 3) as keys and (start, stop) tuples as values.
+    file_path : Path
+        Path to the .mat file
+    ref_signal : numpy.ndarray
+        Force signal data
+    ramp_defs : dict
+        Dictionary with plateau indices as keys and (start, stop) tuples as values
+    force_level : int
+        Force level (% MVC)
+    output_dir : Path
+        Directory to save the output figure
+    FSAMP : int, optional
+        Sampling frequency (default: 10240)
+    metadata : list, optional
+        List of metadata strings to include in the figure
 
     Returns:
     --------
-    fig : matplotlib.figure.Figure
-        The figure object
+    None
     """
-    # Create output directory for plots
-    spikes_dir = Path(f"{folder_path.name}_{muscle_type}_Spikes_Analysis")
-    spikes_dir.mkdir(exist_ok=True)
+    time_ref = np.arange(len(ref_signal)) / FSAMP
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(time_ref, ref_signal, 'k-', label='Force (% MVC)')
 
-    # Get all files for the specified muscle type
-    muscle_files = list_mat_files(folder_path, f"{muscle_type}_")
+    plateau_colors = ['g', 'b', 'r', 'c', 'm', 'y']
+    for plateau_idx, (start_idx, stop_idx) in ramp_defs.items():
+        start_time = start_idx / FSAMP
+        stop_time = stop_idx / FSAMP
+        color = plateau_colors[plateau_idx % len(plateau_colors)]
+        plateau_signal = ref_signal[start_idx:stop_idx+1]
+        if len(plateau_signal) > 1:
+            mean = np.mean(plateau_signal)
+            std = np.std(plateau_signal)
+            cv = std / mean if mean != 0 else np.nan
+        else:
+            cv = np.nan
+        ax.axvspan(start_time, stop_time, color=color, alpha=0.2)
 
-    # Process all files
-    for file_path in muscle_files:
-        try:
-            # Extract force level from filename (e.g., VL_05.mat -> 5)
-            force_level = int(file_path.stem.split('_')[1])
+        # Make sure CV is prominently displayed on the plot
+        ax.text((start_time+stop_time)/2, np.max(ref_signal)*0.95, f'CV: {cv:.3f}',
+                color=color, ha='center', va='top', fontweight='bold',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
 
-            # Load the data
-            data = sio.loadmat(file_path)
-            if 'MUPulses' not in data:
-                print(f"Warning: MUPulses not found in {file_path}")
-                continue
+        ax.axvline(x=start_time, color=color, linestyle='--', alpha=0.7)
+        ax.axvline(x=stop_time, color=color, linestyle=':', alpha=0.7)
 
-            # Check if reference signal exists
-            has_ref_signal = 'ref_signal' in data
-            if not has_ref_signal:
-                print(f"Warning: ref_signal not found in {file_path}")
-                continue
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Force (% MVC)')
 
-            # Get the MUPulses data
-            mu_pulses = data['MUPulses']
-            n_units = mu_pulses.shape[1]
+    # Include CSV metadata at the top of the figure
+    if metadata is not None:
+        metadata_str = "\n".join(metadata)
+        fig.text(0.5, 0.99, metadata_str, ha='center', va='top', fontsize=10, wrap=True, family='monospace', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
 
-            # Get the reference signal (force)
-            ref_signal = data['ref_signal'].flatten()
-
-            # Create time vector for reference signal
-            time_ref = np.arange(len(ref_signal)) / FSAMP  # Convert to seconds
-
-            # Create figure
-            fig, ax = plt.subplots(figsize=(12, 8))
-
-            # Plot force signal
-            ax.plot(time_ref, ref_signal, 'k-', linewidth=1.5, label='Force (% MVC)')
-
-            # Set up colors for different motor units
-            cmap = plt.cm.get_cmap('tab10', n_units)
-
-            # Plot spikes for each motor unit
-            for i in range(n_units):
-                pulses = mu_pulses[0, i]
-
-                # Convert pulse times to seconds
-                pulse_times = pulses / FSAMP
-
-                # Create y-values for the scatter plot (constant for each MU)
-                # Scale to be visible on the same axis as force
-                y_values = np.ones_like(pulse_times) * (i + 1) * (np.max(ref_signal) / (n_units + 1))
-
-                # Plot spikes as points
-                ax.scatter(pulse_times, y_values,
-                           color=cmap(i),
-                           marker='|',
-                           s=100,
-                           linewidth=1.5,
-                           label=f'MU {i+1}')
-
-            # Add plateau phase markers if ramp definitions are provided
-            if ramp_defs is not None and force_level in ramp_defs:
-                # Colors for different plateaus
-                plateau_colors = ['g', 'b', 'r', 'c']
-
-                # Add vertical lines and annotations for each plateau
-                for plateau_idx, (plateau_start, plateau_stop) in ramp_defs[force_level].items():
-                    start_time = plateau_start / FSAMP
-                    stop_time = plateau_stop / FSAMP
-
-                    color = plateau_colors[plateau_idx % len(plateau_colors)]
-
-                    # Add vertical lines to mark plateau phase
-                    ax.axvline(x=start_time, color=color, linestyle='--', alpha=0.7,
-                               label=f'Plateau {plateau_idx+1} Start')
-                    ax.axvline(x=stop_time, color=color, linestyle=':', alpha=0.7,
-                               label=f'Plateau {plateau_idx+1} End')
-
-                    # Add text annotation
-                    ax.text(start_time + (stop_time - start_time)/2, np.max(ref_signal) * (1.05 + 0.05*plateau_idx),
-                            f'Plateau {plateau_idx+1} ({start_time:.1f}s - {stop_time:.1f}s)',
-                            horizontalalignment='center', verticalalignment='bottom',
-                            color=color, fontweight='bold',
-                            bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
-
-            # Set labels and title
-            ax.set_xlabel('Time (s)')
-            ax.set_ylabel('Force (% MVC) / Motor Unit Spikes')
-            ax.set_title(f'{muscle_type} Motor Units Spikes and Force - {force_level}% MVC\n{file_path.name}')
-
-            # Add grid
-            ax.grid(True, linestyle='--', alpha=0.7)
-
-            # Create custom legend with MU numbers
-            handles, labels = ax.get_legend_handles_labels()
-
-            # Reorder to put force first, then MUs, then plateau markers
-            force_idx = labels.index('Force (% MVC)')
-
-            # Create new order
-            new_order = [force_idx]
-            mu_indices = [i for i, label in enumerate(labels) if label.startswith('MU ')]
-            plateau_indices = [i for i, label in enumerate(labels) if 'Plateau' in label]
-
-            new_order.extend(mu_indices)
-            new_order.extend(plateau_indices)
-
-            # Apply new order
-            handles = [handles[i] for i in new_order]
-            labels = [labels[i] for i in new_order]
-
-            # Add legend with two columns
-            ax.legend(handles, labels, loc='upper right', ncol=2)
-
-            # Adjust y-axis to show all spikes and plateau annotations
-            ax.set_ylim(0, np.max(ref_signal) * 1.3)
-
-            plt.tight_layout()
-
-            # Save the figure
-            output_file = spikes_dir / f"{folder_path.name}_{muscle_type}_{force_level}_spikes_with_force.png"
-            fig.savefig(output_file, dpi=300)
-            plt.close(fig)
-            print(f"Saved spikes plot to {output_file}")
-
-        except Exception as e:
-            print(f"Error processing {file_path}: {e}")
-            import traceback
-            traceback.print_exc()
+    ax.set_title(f'Force Signal with Plateau CVs - {file_path.name} ({force_level}% MVC)')
+    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.legend()
+    plt.tight_layout(rect=[0,0,1,0.93])
+    output_file = output_dir / f"{file_path.stem}_force_plateau_CV.png"
+    fig.savefig(output_file, dpi=300)
+    plt.close(fig)
+    print(f"Saved force+CV plot to {output_file}")
 
     return None
 
@@ -1817,86 +1938,3 @@ def compute_isi_statistics(folder_path, muscle_type, ramp_defs):
 
     return df_stats
 
-if __name__ == "__main__":
-    print("P01/P02 iEMG Ramps Data Analyzer")
-    print("================================")
-    print("\nThis program analyzes data from P01_iEMG_Ramps and P02_iEMG_Ramps folders.")
-
-    # Find all folders starting with 'P' in the data directory
-    p_folders = [f for f in DATA_PATH.iterdir() if f.is_dir() and f.name.startswith('P')]
-
-    # DataFrame to store all ISI statistics
-    all_isi_stats = []
-
-    for folder in p_folders:
-        print(f"\nProcessing {folder.name}...")
-
-        # Load ramp definitions (plateau phases)
-        ramp_defs = load_ramp_definitions(folder)
-
-        if not ramp_defs:
-            print(f"  No ramp definitions found in {folder}, skipping...")
-            continue
-
-        # Process VL data
-        print(f"  Extracting VL plateau spikes...")
-        save_plateau_spikes_to_csv(folder, "VL", ramp_defs)
-
-        # Process VM data
-        print(f"  Extracting VM plateau spikes...")
-        save_plateau_spikes_to_csv(folder, "VM", ramp_defs)
-
-        # Generate plots
-        print(f"  Creating spike plots...")
-        plot_mu_spikes_with_force(folder, "VL", ramp_defs)
-        plot_mu_spikes_with_force(folder, "VM", ramp_defs)
-
-        # Compute ISI statistics
-        print(f"  Computing ISI statistics...")
-        vl_stats = compute_isi_statistics(folder, "VL", ramp_defs)
-        vm_stats = compute_isi_statistics(folder, "VM", ramp_defs)
-
-        # Add to the list of all statistics
-        all_isi_stats.append(vl_stats)
-        all_isi_stats.append(vm_stats)
-
-    # Combine all statistics into a single DataFrame
-    if all_isi_stats:
-        combined_stats = pd.concat(all_isi_stats, ignore_index=True)
-
-        # Save to CSV
-        stats_dir = Path("ISI_Statistics")
-        stats_dir.mkdir(exist_ok=True)
-        stats_file = stats_dir / "all_motor_units_isi_statistics.csv"
-        combined_stats.to_csv(stats_file, index=False)
-        print(f"\nSaved ISI statistics to {stats_file}")
-
-        # Display summary
-        print("\nISI Statistics Summary:")
-        print(f"Total motor units analyzed: {len(combined_stats)}")
-        print(f"Muscles: {', '.join(combined_stats['Muscle'].unique())}")
-        print(f"Force levels: {', '.join(map(str, sorted(combined_stats['Force_Level'].unique())))}")
-
-        # Group by muscle and force level and compute mean statistics
-        grouped_stats = combined_stats.groupby(['Muscle', 'Force_Level']).agg({
-            'ISI_Mean_ms': 'mean',
-            'ISI_SD_ms': 'mean',
-            'ISI_CV': 'mean',
-            'Firing_Rate_Hz': 'mean',
-            'MU': 'count'
-        }).reset_index()
-
-        grouped_stats = grouped_stats.rename(columns={'MU': 'Num_MUs'})
-
-        # Save grouped statistics to CSV
-        grouped_file = stats_dir / "grouped_isi_statistics.csv"
-        grouped_stats.to_csv(grouped_file, index=False)
-        print(f"Saved grouped ISI statistics to {grouped_file}")
-
-        # Print grouped statistics
-        print("\nGrouped ISI Statistics:")
-        print(grouped_stats)
-    else:
-        print("\nNo ISI statistics were computed.")
-
-    print("\nAnalysis complete!")

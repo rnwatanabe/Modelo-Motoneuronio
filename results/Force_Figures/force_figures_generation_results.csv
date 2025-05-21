@@ -1,0 +1,13 @@
+Folder,File,Muscle,Force_Level,Status
+P01_iEMG_Ramps,VL_15.mat,VL,15,Success
+P01_iEMG_Ramps,VL_05.mat,VL,5,Success
+P01_iEMG_Ramps,VL_30.mat,VL,30,Success
+P01_iEMG_Ramps,VM_05.mat,VM,5,Success
+P01_iEMG_Ramps,VM_30.mat,VM,30,Success
+P01_iEMG_Ramps,VM_15.mat,VM,15,Success
+P02_iEMG_Ramps,VL_15.mat,VL,15,Success
+P02_iEMG_Ramps,VL_05.mat,VL,5,Success
+P02_iEMG_Ramps,VL_30.mat,VL,30,Success
+P02_iEMG_Ramps,VM_05.mat,VM,5,Success
+P02_iEMG_Ramps,VM_30.mat,VM,30,Success
+P02_iEMG_Ramps,VM_15.mat,VM,15,Success

@@ -46,7 +46,7 @@ def create_cond(n: int, gmin: float, gmax: float, compartment: str, seed: int=1,
     noise_g = CV*rng.normal(size=n)
     
     return [
-        uniform(compartment, gmin*np.exp(i/(n-1)*np.log(gmax/gmin))*(1+noise_g[i]))
+        uniform(compartment, gmax*np.exp(i/(n-1)*np.log(gmin/gmax))*(1+noise_g[i]))
         for i in range(n)
         ]
 
