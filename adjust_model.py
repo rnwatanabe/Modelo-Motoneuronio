@@ -188,7 +188,7 @@ def _(
     def execute_model(diameter_soma_min=77.5, diameter_soma_max=82.5, y_min=18.0, y_max=36.0, diameter_dend_min=41.5,
                       diameter_dend_max=62.5, x_min=-5500, x_max=-6789, vt_min=12.35, vt_max=20.9, 
                       kf_cond_min=4, kf_cond_max=0.5, Fmin=0.04, Fmax=4, Tcmin=110, Tcmax=25, vel_min=44, vel_max=53, MVC=300, Tf=10000,
-                      mn_number=250, gamma_order=16, CV=0.01, force_mvc=0.2, Kp=0.07, Ki=0.007):
+                      mn_number=250, gamma_order=16, CV=0.01, force_mvc=0.2, Kp=0.07, Ki=0.007, trial=1):
 
         force_level = 20
 
@@ -197,176 +197,178 @@ def _(
         connection_prob = 0.1
 
 
-        for trial in range(1,2):
-            rng1 = np.random.default_rng(seed=trial+100)
-            timestep = 0.05
-            sim.setup(timestep=timestep)
 
-            somas = functions.create_somas(mn_number, diameter_min=diameter_soma_min, diameter_max=diameter_soma_max, y_min=y_min,
-                                           y_max=y_max, seed=trial+500, CV=CV)
-            dends = functions.create_dends(mn_number, somas, diameter_min=diameter_dend_min, diameter_max=diameter_dend_max, y_min=y_min, y_max=y_max, x_min=x_min, x_max=x_max, seed=trial+500, CV=CV)
-            vt = -70 + vt_min*np.exp(np.arange(mn_number)/(mn_number-1)*np.log(vt_max/vt_min))*(1+CV*rng1.normal(size=mn_number))
-            cell_type = Classes.cell_class(
-                morphology= functions.soma_dend(somas, dends) ,
-                cm=1,    # mF / cm**2
-                Ra=0.070, # ohm.mm
-                ionic_species={"na": IonicSpecies("na", reversal_potential=50),
-                               "ks": IonicSpecies("ks", reversal_potential=-80),
-                               "kf": IonicSpecies("kf", reversal_potential=-80)
-                               },
-                pas_soma = {"conductance_density": functions.create_cond(mn_number, 7e-4, 7e-4, 'soma',  seed=trial+600, CV=10*CV), "e_rev":-70}, #
-                pas_dend = {"conductance_density": functions.create_cond(mn_number, 7e-4, 7e-4, 'dendrite',  seed=trial+600, CV=10*CV), "e_rev":-70}, #
-                na = {"conductance_density": uniform('soma', 30), "vt":list(vt)},
-                kf = {"conductance_density": functions.create_cond(mn_number, kf_cond_min, kf_cond_max, 'soma',  seed=trial+700, CV=CV), "vt":list(vt)},
-                ks = {"conductance_density": uniform('soma', 0.1), "vt":list(vt)},
-                syn={"locations": centre('dendrite'),
-                    "e_syn": 0,
-                    "tau_syn": 0.6},  
-            )
+        rng1 = np.random.default_rng(seed=trial+100)
+        timestep = 0.05
+        sim.setup(timestep=timestep)
 
-            cells = sim.Population(mn_number, cell_type, initial_values={'v': list(-70*np.ones(mn_number))})
+        somas = functions.create_somas(mn_number, diameter_min=diameter_soma_min, diameter_max=diameter_soma_max, y_min=y_min,
+                                       y_max=y_max, seed=trial+500, CV=CV)
+        dends = functions.create_dends(mn_number, somas, diameter_min=diameter_dend_min, diameter_max=diameter_dend_max, y_min=y_min, y_max=y_max, x_min=x_min, x_max=x_max, seed=trial+500, CV=CV)
+        vt = -70 + vt_min*np.exp(np.arange(mn_number)/(mn_number-1)*np.log(vt_max/vt_min))*(1+CV*rng1.normal(size=mn_number))
+        cell_type = Classes.cell_class(
+            morphology= functions.soma_dend(somas, dends) ,
+            cm=1,    # mF / cm**2
+            Ra=0.070, # ohm.mm
+            ionic_species={"na": IonicSpecies("na", reversal_potential=50),
+                           "ks": IonicSpecies("ks", reversal_potential=-80),
+                           "kf": IonicSpecies("kf", reversal_potential=-80)
+                           },
+            pas_soma = {"conductance_density": functions.create_cond(mn_number, 7e-4, 7e-4, 'soma',  seed=trial+600, CV=10*CV), "e_rev":-70}, #
+            pas_dend = {"conductance_density": functions.create_cond(mn_number, 7e-4, 7e-4, 'dendrite',  seed=trial+600, CV=10*CV), "e_rev":-70}, #
+            na = {"conductance_density": uniform('soma', 30), "vt":list(vt)},
+            kf = {"conductance_density": functions.create_cond(mn_number, kf_cond_min, kf_cond_max, 'soma',  seed=trial+700, CV=CV), "vt":list(vt)},
+            ks = {"conductance_density": uniform('soma', 0.1), "vt":list(vt)},
+            syn={"locations": centre('dendrite'),
+                "e_syn": 0,
+                "tau_syn": 0.6},  
+        )
 
-            muscle_units, force_objects, neuromuscular_junctions = neuromuscular_system(cells, mn_number, h, seed=trial+1, 
-                                                                                        Fmin=Fmin, Fmax=Fmax, Tcmin=Tcmin, Tcmax=Tcmax,
-                                                                                        vel_min=vel_min, vel_max=vel_max, CV=CV)
-            # 
-            spike_source = sim.Population(400, Classes.SpikeSourceGammaStart(alpha=1))
-            feedback_source = sim.Population(400, Classes.SpikeSourceGammaStart(alpha=1)) 
-                                                                    #start=RandomDistribution('uniform', [0, 3.0], rng=NumpyRNG(seed=4242))))
-            syn = sim.StaticSynapse(weight=0.6, delay=0.2)
-            syn1 = sim.StaticSynapse(weight=0.6, delay=0.2)
-            # nmj = sim.StaticSynapse(weight=1, delay=0.2)
-            input_conns = sim.Projection(spike_source, cells, 
-                                        sim.FixedProbabilityConnector(connection_prob, location_selector='dendrite', rng=NumpyRNG(seed=trial+200)), 
-                                        syn, receptor_type="syn")
-            feedback_conns = sim.Projection(feedback_source, cells, 
-                                        sim.FixedProbabilityConnector(connection_prob, location_selector='dendrite', rng=NumpyRNG(seed=trial+300)), 
+        cells = sim.Population(mn_number, cell_type, initial_values={'v': list(-70*np.ones(mn_number))})
+
+        muscle_units, force_objects, neuromuscular_junctions = neuromuscular_system(cells, mn_number, h, seed=trial+1, 
+                                                                                    Fmin=Fmin, Fmax=Fmax, Tcmin=Tcmin, Tcmax=Tcmax,
+                                                                                    vel_min=vel_min, vel_max=vel_max, CV=CV)
+        # 
+        spike_source = sim.Population(400, Classes.SpikeSourceGammaStart(alpha=1))
+        feedback_source = sim.Population(400, Classes.SpikeSourceGammaStart(alpha=1)) 
+                                                                #start=RandomDistribution('uniform', [0, 3.0], rng=NumpyRNG(seed=4242))))
+        syn = sim.StaticSynapse(weight=0.6, delay=0.2)
+        syn1 = sim.StaticSynapse(weight=0.6, delay=0.2)
+        # nmj = sim.StaticSynapse(weight=1, delay=0.2)
+        input_conns = sim.Projection(spike_source, cells, 
+                                     sim.FixedProbabilityConnector(connection_prob, location_selector='dendrite', 
+                                                                   rng=NumpyRNG(seed=trial+200)), 
+                                     syn, receptor_type="syn")
+        feedback_conns = sim.Projection(feedback_source, cells, 
+                                        sim.FixedProbabilityConnector(connection_prob, location_selector='dendrite', 
+                                                                      rng=NumpyRNG(seed=trial+300)), 
                                         syn1, receptor_type="syn")
-            spike_source.record('spikes')
-            feedback_source.record('spikes')
-            cells.record('spikes')
-            cells[[0, 145]].record('v', locations='soma')
-            # cells[0:2].record(('na.m', 'na.h'), locations='soma')
-            # cells[0:2].record(('kf.n'), locations='soma')
-            # cells[0:2].record(('ks.p'), locations='soma')
-            f = dict()
+        spike_source.record('spikes')
+        feedback_source.record('spikes')
+        cells.record('spikes')
+        cells[[0, 145]].record('v', locations='soma')
+        # cells[0:2].record(('na.m', 'na.h'), locations='soma')
+        # cells[0:2].record(('kf.n'), locations='soma')
+        # cells[0:2].record(('ks.p'), locations='soma')
+        f = dict()
+        for mn in range(mn_number):
+            f[mn] = h.Vector().record(force_objects[mn]._ref_F)
+
+        refs = np.array([force_mvc])*MVC
+
+        n = 0
+        j = 0
+        for ref in refs:   
+            spike_source.set(alpha=8)
+            feedback_source.set(alpha=gamma_order)
+            feedforward = 0
+            # spike_source.set(beta=feedforward+1e-6)    
+            sim.run(Tf, callbacks=[Classes.SetRateIntControl(feedback_source, cells, force_objects, ref=ref, feedforward=0*feedforward, strength=1, Kp=Kp, Ki=Ki, delay=delay),
+                                   Classes.SetRateIntControl(spike_source, cells, force_objects, ref=ref, feedforward=feedforward, strength=0, Kp=Kp, Ki=Ki, delay=delay)])
+            print('fim simulação')
+
+
+            force = sum_force(force_objects, h, f)#.as_numpy()
+
+            rate = feedforward + 1*((ref - force) * Kp + Ki*np.cumsum(ref - force)*0.05)
+
+            t = np.arange(0, len(force))*timestep
+            print(rate[t>4000].mean())
+
+            print('CV = ', np.std(force.as_numpy()[t>4000])/force.as_numpy()[t>4000].mean())
+            plt.plot(t, force)
+            plt.hlines(MVC*force_level/100, 0, Tf)
+            # plt.ylim(1000, 1200)
+            plt.grid()
+            plt.show()
+
+            new_folder = f"results/force_adjust"
+            os.makedirs(new_folder, exist_ok=True)
+            df = pd.DataFrame({'time': t, 'force': force, 'rate': rate})
+            # for i in range(100):
+            #     df[f'F{str(i)}'] = f[i].as_numpy()
+            filename = os.path.join(new_folder, f'force_ref{int(ref/MVC*100)}.csv')
+            df.to_csv(filename, index=False) 
+
+            data_source = spike_source.get_data().segments[n]
+            data = cells.get_data().segments[n]
+            vm = data.filter(name="soma.v")[0]
+
+            #teste spike_datasource
+            spike_df = pd.DataFrame([{"neuron_id": neuron_id, "spike_time": spike_time}
+                for neuron_id, spikes in enumerate(data_source.spiketrains)
+                for spike_time in spikes])
+
+            new_folder1 = f"results/spikedatasource_adjust"
+            os.makedirs(new_folder1, exist_ok=True)    
+            filename = os.path.join(new_folder1, f'spike_data_ref_{int(ref/MVC*100)}.csv')
+            spike_df.to_csv(filename, index=False)
+
+
+            feedback_source = feedback_source.get_data().segments[n]
+
+
+            #teste spike_datasource
+            spike_df = pd.DataFrame([{"neuron_id": neuron_id, "spike_time": spike_time}
+                for neuron_id, spikes in enumerate(feedback_source.spiketrains)
+                for spike_time in spikes])
+
+            new_folder1 = f"results/spikefeedbacksource_adjust"
+            os.makedirs(new_folder1, exist_ok=True)    
+            filename = os.path.join(new_folder1, f'spike_data_ref_{int(ref/MVC*100)}.csv')
+            spike_df.to_csv(filename, index=False)
+
+            # plt.scatter(spike_df["spike_time"], spike_df["neuron_id"], s=4, label=f"ref={ref}")
+
+            # plt.show()
+
+            #teste spike_data
+            cell_spike_df = pd.DataFrame([{"neuron_id": neuron_id, "spike_time": spike_time}
+                for neuron_id, spikes in enumerate(data.spiketrains)
+                for spike_time in spikes])            
+
+
+            new_folder2 = f"results/spikedata_adjust"
+            os.makedirs(new_folder2, exist_ok=True)    
+            filename = os.path.join(new_folder2, f'cell_spike_ref_{int(ref/MVC*100)}.csv')
+            cell_spike_df.to_csv(filename, index=False)
+
+            data_spikes = pd.read_csv(filename, delimiter=',')
+            data_spikes['spike_time'] = data_spikes['spike_time'].str.replace(' ms', '')
+            data_spikes['spike_time'] = data_spikes['spike_time'].astype('float')
+            data_spikes['spike_time_motor_plate'] = data_spikes['spike_time'].values                
+            data_spikes_values = data_spikes.values
+            for mn in range(mn_number):                   
+                data_spikes_values[data_spikes_values[:,0]==mn,2] = data_spikes_values[data_spikes_values[:,0]==mn,1] + neuromuscular_junctions[mn].delay 
+            data_spikes['spike_time_motor_plate'] = data_spikes_values[:,2]
+            data_spikes.to_csv(filename, index=False)
+            plt.figure
+            plt.scatter(cell_spike_df["spike_time"], cell_spike_df["neuron_id"], s=4,label=f"ref={ref}")
+            plt.show()
+
+            plt.figure()
+            plt.plot(t, vm)
+            plt.xlim(5500, 7000)
+            plt.title('Membrane potential')
+            plt.legend(['neuron 0', 'neuron 100'])
+            plt.show()
+            sim.reset()
             for mn in range(mn_number):
-                f[mn] = h.Vector().record(force_objects[mn]._ref_F)
-
-            refs = np.array([force_mvc])*MVC
-
-            n = 0
-            j = 0
-            for ref in refs:   
-                spike_source.set(alpha=8)
-                feedback_source.set(alpha=gamma_order)
-                feedforward = 0
-                # spike_source.set(beta=feedforward+1e-6)    
-                sim.run(Tf, callbacks=[Classes.SetRateIntControl(feedback_source, cells, force_objects, ref=ref, feedforward=0*feedforward, strength=1, Kp=Kp, Ki=Ki, delay=delay),
-                                       Classes.SetRateIntControl(spike_source, cells, force_objects, ref=ref, feedforward=feedforward, strength=0, Kp=Kp, Ki=Ki, delay=delay)])
-                print('fim simulação')
-
-
-                force = sum_force(force_objects, h, f)#.as_numpy()
-
-                rate = feedforward + 1*((ref - force) * Kp + Ki*np.cumsum(ref - force)*0.05)
-
-                t = np.arange(0, len(force))*timestep
-                print(rate[t>4000].mean())
-
-                print('CV = ', np.std(force.as_numpy()[t>4000])/force.as_numpy()[t>4000].mean())
-                plt.plot(t, force)
-                plt.hlines(MVC*force_level/100, 0, Tf)
-                # plt.ylim(1000, 1200)
-                plt.grid()
-                plt.show()
-
-                new_folder = f"results/force_adjust"
-                os.makedirs(new_folder, exist_ok=True)
-                df = pd.DataFrame({'time': t, 'force': force, 'rate': rate})
-                # for i in range(100):
-                #     df[f'F{str(i)}'] = f[i].as_numpy()
-                filename = os.path.join(new_folder, f'force_ref{int(ref/MVC*100)}.csv')
-                df.to_csv(filename, index=False) 
-
-                data_source = spike_source.get_data().segments[n]
-                data = cells.get_data().segments[n]
-                vm = data.filter(name="soma.v")[0]
-
-                #teste spike_datasource
-                spike_df = pd.DataFrame([{"neuron_id": neuron_id, "spike_time": spike_time}
-                    for neuron_id, spikes in enumerate(data_source.spiketrains)
-                    for spike_time in spikes])
-
-                new_folder1 = f"results/spikedatasource_adjust"
-                os.makedirs(new_folder1, exist_ok=True)    
-                filename = os.path.join(new_folder1, f'spike_data_ref_{int(ref/MVC*100)}.csv')
-                spike_df.to_csv(filename, index=False)
-
-
-                feedback_source = feedback_source.get_data().segments[n]
-
-
-                #teste spike_datasource
-                spike_df = pd.DataFrame([{"neuron_id": neuron_id, "spike_time": spike_time}
-                    for neuron_id, spikes in enumerate(feedback_source.spiketrains)
-                    for spike_time in spikes])
-
-                new_folder1 = f"results/spikefeedbacksource_adjust"
-                os.makedirs(new_folder1, exist_ok=True)    
-                filename = os.path.join(new_folder1, f'spike_data_ref_{int(ref/MVC*100)}.csv')
-                spike_df.to_csv(filename, index=False)
-
-                # plt.scatter(spike_df["spike_time"], spike_df["neuron_id"], s=4, label=f"ref={ref}")
-
-                # plt.show()
-
-                #teste spike_data
-                cell_spike_df = pd.DataFrame([{"neuron_id": neuron_id, "spike_time": spike_time}
-                    for neuron_id, spikes in enumerate(data.spiketrains)
-                    for spike_time in spikes])            
-
-
-                new_folder2 = f"results/spikedata_adjust"
-                os.makedirs(new_folder2, exist_ok=True)    
-                filename = os.path.join(new_folder2, f'cell_spike_ref_{int(ref/MVC*100)}.csv')
-                cell_spike_df.to_csv(filename, index=False)
-
-                data_spikes = pd.read_csv(filename, delimiter=',')
-                data_spikes['spike_time'] = data_spikes['spike_time'].str.replace(' ms', '')
-                data_spikes['spike_time'] = data_spikes['spike_time'].astype('float')
-                data_spikes['spike_time_motor_plate'] = data_spikes['spike_time'].values                
-                data_spikes_values = data_spikes.values
-                for mn in range(mn_number):                   
-                    data_spikes_values[data_spikes_values[:,0]==mn,2] = data_spikes_values[data_spikes_values[:,0]==mn,1] + neuromuscular_junctions[mn].delay 
-                data_spikes['spike_time_motor_plate'] = data_spikes_values[:,2]
-                data_spikes.to_csv(filename, index=False)
-                plt.figure
-                plt.scatter(cell_spike_df["spike_time"], cell_spike_df["neuron_id"], s=4,label=f"ref={ref}")
-                plt.show()
-
-                plt.figure()
-                plt.plot(t, vm)
-                plt.xlim(5500, 7000)
-                plt.title('Membrane potential')
-                plt.legend(['neuron 0', 'neuron 100'])
-                plt.show()
-                sim.reset()
-                for mn in range(mn_number):
-                    force_objects[mn].F = 0
-                    force_objects[mn].x1 = 0
-                    force_objects[mn].x2 = 0
-                    force_objects[mn].spike = 0
-                    force_objects[mn].CaSR = 0.0025
-                    force_objects[mn].CaSRCS = 0.0	
-                    force_objects[mn].Ca = 1e-10
-                    force_objects[mn].CaT = 0.0	
-                    force_objects[mn].AM = 0.0
-                    force_objects[mn].CaB = 0.0
-                    force_objects[mn].c1 = 0.154
-                    force_objects[mn].c2 = 0.11
-                n = n + 1
-                j = j + 1
+                force_objects[mn].F = 0
+                force_objects[mn].x1 = 0
+                force_objects[mn].x2 = 0
+                force_objects[mn].spike = 0
+                force_objects[mn].CaSR = 0.0025
+                force_objects[mn].CaSRCS = 0.0	
+                force_objects[mn].Ca = 1e-10
+                force_objects[mn].CaT = 0.0	
+                force_objects[mn].AM = 0.0
+                force_objects[mn].CaB = 0.0
+                force_objects[mn].c1 = 0.154
+                force_objects[mn].c2 = 0.11
+            n = n + 1
+            j = j + 1
             sim.end()
 
         t_start = 4000
@@ -422,7 +424,7 @@ def _(execute_model):
                                                    diameter_dend_min=41.5, diameter_dend_max=62.5,  x_min=-5500, 
                                                    x_max=-6789, vt_min=12.35, vt_max=20.9, kf_cond_min=4, kf_cond_max=0.5, Fmin=0.04, 
                                                    Fmax=4, Tcmin=110, Tcmax=25, vel_min=44, vel_max=53, MVC=300, Tf=10000, 
-                                                   mn_number=250, gamma_order=20, CV=0.01, force_mvc=0.2, Kp=0.1, Ki=0.01)
+                                                   mn_number=250, gamma_order=24, CV=0.01, force_mvc=0.2, Kp=0.1, Ki=0.01, trial=2)
     return
 
 
@@ -444,7 +446,7 @@ def _(execute_model):
                                                    diameter_dend_min=49.4, diameter_dend_max=54.5,  x_min=-5889, 
                                                    x_max=-6355, vt_min=15.3, vt_max=17.4, kf_cond_min=1.62, kf_cond_max=1.01, Fmin=0.04, 
                                                    Fmax=3.7, Tcmin=110, Tcmax=25, vel_min=44, vel_max=53, MVC=250, Tf=10000, 
-                                                   mn_number=250, gamma_order=48, CV=0.01, force_mvc=0.2, Kp=0.08, Ki=0.008)
+                                                   mn_number=250, gamma_order=48, CV=0.01, force_mvc=0.2, Kp=0.08, Ki=0.008, trial=1)
     return
 
 
@@ -460,7 +462,7 @@ def _(execute_model):
                                                    diameter_dend_min=41.5, diameter_dend_max=62.5,  x_min=-5500, 
                                                    x_max=-6789, vt_min=12.35, vt_max=20.9, kf_cond_min=1, kf_cond_max=1, Fmin=0.03, 
                                                    Fmax=3, Tcmin=170, Tcmax=84, vel_min=44, vel_max=53, MVC=300, Tf=10000, 
-                                                   mn_number=250, gamma_order=1, CV=0.01, force_mvc=0.2, Kp=0.01, Ki=0.001)
+                                                   mn_number=250, gamma_order=1, CV=0.01, force_mvc=0.2, Kp=0.01, Ki=0.001, trial=2)
     return
 
 
