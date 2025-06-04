@@ -243,6 +243,27 @@ class SetRate(object):
 
         return t + self.interval
 
+class SetRateGamma(object):
+    """
+    A callback which changes the firing rate of a population of poisson
+    processes at a fixed interval, based on the forces of the muscle units.
+    """
+
+    def __init__(
+        self, population_source, interval=20.0, rate=100
+    ):
+        self.population_source = population_source
+        self.interval = interval
+        self.rate = rate
+        print(f"rate: {self.rate}")
+
+    def __call__(self, t):
+        
+        self.population_source.set(beta=self.rate)
+
+        return t + self.interval
+
+
 
 class SetRateIntControl(object):
     """

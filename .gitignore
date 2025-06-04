@@ -221,4 +221,6 @@ pip-selfcheck.json
 # Ignore data folder (do not track experimental or raw data)
 data/
 
+diabetes/
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,jupyternotebooks,venv

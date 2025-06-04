@@ -61,9 +61,9 @@ BREAKPOINT {
 
 DERIVATIVE states {
     rates(v)
-    m' = 0.1*alpha_m*(1-m) - 0.1*beta_m*m
-    h' = 0.035*alpha_h*(1-h) - 0.035*beta_h*h
-    n' = 0.035*alpha_n*(1-n) - 0.035*beta_n*n
+    m' = 1*alpha_m*(1-m) - 1*beta_m*m
+    h' = 0.04*alpha_h*(1-h) - 0.04*beta_h*h
+    n' = 0.04*alpha_n*(1-n) - 0.04*beta_n*n
     p' = (pinf - p) / ptau
 }
 
